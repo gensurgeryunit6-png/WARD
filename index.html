@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a4f42">
+  <title>Ward Management System</title>
+  <style>
+    :root {
+      --ink: #1a2b3c; --ink-soft: #5b6b78; --line: #dbe2e8;
+      --accent: #0f6e5c; --accent-dark: #0a4f42; --accent-soft: #e8f4f0;
+      --danger: #b3432b; --warning: #d97706; --info: #0284c7;
+      --bg: #f3f6f5; --card: #ffffff;
+      --critical: #dc2626; --urgent: #ea580c; --moderate: #d4a017; --stable: #16a34a;
+      --fsw: #2563eb; --fsw-bg: #eef4ff; --msw: #16a34a; --msw-bg: #eefbf1;
+      --special: #ca8a04; --special-bg: #fffaeb; --radius: 14px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { overflow-x: hidden; width: 100%; margin:0; padding:0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg); color: var(--ink);
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      -webkit-text-size-adjust: 100%; touch-action: manipulation;
+    }
+    .top-bar { position: sticky; top: 0; z-index: 100; padding-top: env(safe-area-inset-top); background: var(--accent-dark); }
+    header { background: var(--accent-dark); color: #fff; padding: 8px 14px; }
+    header h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+    .date-nav { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px; }
+    .date-nav button { background:rgba(255,255,255,0.15); border:none; color:#fff; padding:2px 10px; border-radius:6px; font-size:0.7rem; cursor:pointer; }
+    .date-nav input[type="date"] { background:rgba(255,255,255,0.2); border:none; color:#fff; padding:2px 6px; border-radius:6px; font-size:0.7rem; }
+    .date-nav .date-label { font-size:0.75rem; font-weight:600; }
+    .sync-status { display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; opacity: 0.9; }
+    .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+    .sync-dot.saving { background: #eab308; animation: pulse 1s infinite; }
+    .sync-dot.offline { background: #dc2626; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .tab-container { background: var(--card); border-bottom: 1px solid var(--line); display: flex; gap: 0; flex-wrap:wrap; overflow-x:auto; }
+    .tab-btn { flex:1; min-height:40px; padding:8px 4px; border:none; background:transparent; color:#666; font-size:0.7rem; font-weight:600; cursor:pointer; border-bottom:3px solid transparent; transition:0.15s; white-space:nowrap; min-width:60px; }
+    .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .tab-content { display: none; padding: 8px 10px; }
+    .tab-content.active { display: block; }
+    .search-wrap { display: flex; gap: 8px; padding: 6px 0 0; flex-wrap:wrap; }
+    .search-box { flex:1; min-width:100px; position:relative; }
+    .search-box input { width:100%; padding:8px 12px 8px 30px; border:1px solid var(--line); border-radius:10px; font-size:0.85rem; background:var(--card); }
+    .search-box::before { content:"🔍"; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:0.8rem; opacity:0.6; }
+    .filter-toggle-btn { min-width:40px; border:1px solid var(--line); background:var(--card); border-radius:10px; font-size:0.9rem; cursor:pointer; }
+    .filter-panel { display:none; padding:10px; background:var(--card); margin:6px 0 8px; border-radius:10px; border:1px solid var(--line); }
+    .filter-panel.open { display:block; }
+    .filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .filter-field label { display:block; font-size:0.65rem; color:#666; text-transform:uppercase; font-weight:600; margin-bottom:3px; }
+    .filter-field select, .filter-field input { width:100%; padding:6px; border:1px solid var(--line); border-radius:8px; font-size:0.8rem; background:var(--card); }
+    .filter-toggles { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .filter-chip { border:1px solid var(--line); background:#fbfdfc; border-radius:20px; padding:5px 12px; font-size:0.7rem; font-weight:600; color:#555; cursor:pointer; }
+    .filter-chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .filter-clear-row { text-align:right; margin-top:8px; }
+    .filter-clear-row button { border:none; background:none; color:var(--danger); font-size:0.75rem; font-weight:700; cursor:pointer; }
+    .summary-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; padding:6px 0 10px; }
+    @media (min-width:640px){ .summary-grid { grid-template-columns:repeat(4,1fr); } }
+    @media (min-width:960px){ .summary-grid { grid-template-columns:repeat(5,1fr); } }
+    .metric-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px; text-align:center; }
+    .metric-label { font-size:0.6rem; color:#666; text-transform:uppercase; margin-bottom:2px; font-weight:600; }
+    .metric-value { font-size:1.3rem; font-weight:800; color:var(--accent); line-height:1.1; }
+    .metric-card.fsw { border-color:var(--fsw); background:var(--fsw-bg); } .metric-card.fsw .metric-value { color:var(--fsw); }
+    .metric-card.msw { border-color:var(--msw); background:var(--msw-bg); } .metric-card.msw .metric-value { color:var(--msw); }
+    .metric-card.special { border-color:var(--special); background:var(--special-bg); } .metric-card.special .metric-value { color:var(--special); }
+    .metric-card.critical { border-color:var(--critical); background:#fff5f5; } .metric-card.critical .metric-value { color:var(--critical); }
+    .metric-card.warn { border-color:var(--warning); background:#fffbf0; } .metric-card.warn .metric-value { color:var(--warning); }
+    .ward-section { margin:4px 0 6px; }
+    .ward-section-header { display:flex; align-items:center; gap:8px; padding:6px 2px 4px; }
+    .ward-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+    .ward-dot.fsw { background:var(--fsw); } .ward-dot.msw { background:var(--msw); } .ward-dot.special { background:var(--special); }
+    .ward-section-title { font-weight:800; font-size:0.85rem; color:#333; }
+    .ward-section-count { font-weight:600; color:#888; font-size:0.8rem; }
+    .ward-cards-grid { display:grid; grid-template-columns:1fr; gap:6px; }
+    @media (min-width:720px){ .ward-cards-grid { grid-template-columns:1fr 1fr; } }
+    @media (min-width:1100px){ .ward-cards-grid { grid-template-columns:1fr 1fr 1fr; } }
+    .empty-ward { padding:12px; color:#999; font-size:0.8rem; background:var(--card); border:1px dashed var(--line); border-radius:10px; text-align:center; }
+    .no-results { padding:20px 16px; text-align:center; color:#888; font-size:0.85rem; }
+    .patient-card {
+      background:var(--card); border:1px solid var(--line); border-left:5px solid var(--line);
+      border-radius:var(--radius); padding:10px; cursor:pointer; position:relative;
+      transition:box-shadow 0.15s, transform 0.1s;
+    }
+    .patient-card:active { transform:scale(0.99); }
+    .patient-card.ward-fsw { border-left-color:var(--fsw); }
+    .patient-card.ward-msw { border-left-color:var(--msw); }
+    .patient-card.ward-special { border-left-color:var(--special); }
+    .patient-card.rounded-today { background:linear-gradient(0deg, #f5fbf7, #ffffff); }
+    .pc-top { display:flex; justify-content:space-between; align-items:flex-start; gap:6px; }
+    .pc-bed { font-size:0.65rem; font-weight:800; color:var(--ink-soft); letter-spacing:0.03em; text-transform:uppercase; }
+    .pc-name { font-size:0.9rem; font-weight:800; margin:2px 0 1px; color:var(--ink); }
+    .pc-sub { font-size:0.7rem; color:var(--ink-soft); }
+    .pc-diagnosis { font-size:0.75rem; color:#333; margin-top:4px; line-height:1.3; }
+    .pc-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; align-items:center; }
+    .status-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:6px; font-size:0.6rem; font-weight:700; }
+    .status-badge.critical { background:#ffe5e5; color:var(--critical); }
+    .status-badge.urgent { background:#fff4e5; color:var(--urgent); }
+    .status-badge.moderate { background:#fdf6e0; color:var(--moderate); }
+    .status-badge.stable { background:#e9f9ee; color:var(--stable); }
+    .tag-pill { padding:2px 8px; border-radius:6px; font-size:0.6rem; font-weight:600; background:#f1f4f3; color:#555; }
+    .pc-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px solid var(--line); }
+    .pc-round-status { font-size:0.65rem; font-weight:700; color:#999; }
+    .pc-round-status.done { color:var(--stable); }
+    .pc-round-time { font-size:0.6rem; color:#999; display:block; font-weight:500; }
+    .pc-icons { display:flex; gap:4px; font-size:0.8rem; flex-wrap:wrap; }
+    .pc-actions { display:flex; gap:2px; }
+    .pc-actions button { border:none; background:transparent; font-size:0.85rem; cursor:pointer; padding:4px 6px; min-width:28px; min-height:28px; border-radius:6px; }
+    .task-board-toolbar { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; align-items:center; }
+    .task-board-toolbar .add-btn { background:var(--accent); color:#fff; border:none; padding:6px 14px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.8rem; }
+    .task-filters { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+    .task-filters select, .task-filters input { padding:4px 8px; border:1px solid var(--line); border-radius:8px; font-size:0.75rem; background:var(--card); }
+    .task-counters { display:flex; gap:8px; flex-wrap:wrap; font-weight:600; font-size:0.75rem; padding:4px 0; }
+    .task-counters span { background:var(--card); padding:3px 10px; border-radius:20px; border:1px solid var(--line); }
+    .task-board { display:grid; grid-template-columns:1fr; gap:6px; }
+    @media (min-width:640px){ .task-board { grid-template-columns:1fr 1fr; } }
+    @media (min-width:1024px){ .task-board { grid-template-columns:1fr 1fr 1fr 1fr; } }
+    .task-column { background:var(--card); border-radius:12px; border:1px solid var(--line); padding:6px; }
+    .task-column h4 { margin:0 0 6px; font-size:0.75rem; text-transform:uppercase; color:#555; border-bottom:2px solid var(--line); padding-bottom:4px; }
+    .task-tile {
+      background:#f9fbfa; border-radius:8px; padding:8px; margin-bottom:6px;
+      border-left:4px solid #ccc; cursor:pointer;
+      transition:0.1s;
+    }
+    .task-tile:active { transform:scale(0.99); }
+    .task-tile.priority-critical { border-left-color:var(--critical); }
+    .task-tile.priority-high { border-left-color:var(--urgent); }
+    .task-tile.priority-medium { border-left-color:var(--moderate); }
+    .task-tile.priority-low { border-left-color:var(--stable); }
+    .task-tile .task-title { font-weight:700; font-size:0.85rem; }
+    .task-tile .task-meta { color:#666; font-size:0.7rem; margin-top:2px; }
+    .task-tile .task-actions { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
+    .task-tile .task-actions button { border:none; background:var(--accent-soft); padding:2px 6px; border-radius:4px; font-size:0.65rem; cursor:pointer; }
+    .task-tile .task-actions .del { background:#fee; color:var(--danger); }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(10,20,25,0.55); z-index:1000; align-items:flex-end; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:var(--card); width:100%; max-width:480px; max-height:88vh; overflow-y:auto; border-radius:16px 16px 0 0; padding:16px; }
+    .modal-box h2 { margin:0 0 10px; font-size:1rem; }
+    .modal-field { margin-bottom:8px; }
+    .modal-field label { display:block; font-size:0.65rem; color:#666; text-transform:uppercase; margin-bottom:3px; font-weight:600; }
+    .modal-field input, .modal-field select, .modal-field textarea { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; font-size:0.85rem; font-family:inherit; background:var(--card); }
+    .modal-field textarea { min-height:50px; resize:vertical; }
+    .modal-row { display:flex; gap:6px; }
+    .modal-row .modal-field { flex:1; }
+    .modal-actions { display:flex; gap:6px; margin-top:12px; }
+    .modal-actions button { flex:1; min-height:40px; border-radius:8px; border:none; font-weight:700; font-size:0.85rem; cursor:pointer; }
+    .modal-save-btn { background:var(--accent); color:#fff; }
+    .modal-cancel-btn { background:#eef1f0; color:var(--ink); }
+    .modal-danger-btn { background:var(--danger); color:#fff; }
+    #roundOverlay .modal-box { max-width:560px; }
+    .round-section { border:1px solid var(--line); border-radius:10px; margin-bottom:12px; padding:0 0 6px; background:#fafcfb; }
+    .round-section-header { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f1f4f3; border-radius:10px 10px 0 0; font-weight:700; font-size:0.75rem; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:4px; }
+    .round-section-header .actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .round-section-header .actions label { font-weight:400; font-size:0.7rem; display:flex; align-items:center; gap:3px; cursor:pointer; }
+    .round-section-body { padding:6px 10px; }
+    .round-field { margin-bottom:6px; }
+    .round-field label { display:block; font-size:0.65rem; font-weight:600; color:#444; margin-bottom:2px; }
+    .round-field select, .round-field input, .round-field textarea { width:100%; padding:5px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.8rem; font-family:inherit; background:var(--card); }
+    .invest-item { display:flex; flex-wrap:wrap; gap:3px; align-items:center; border-bottom:1px solid #f0f0f0; padding:3px 0; }
+    .invest-item select { padding:2px 4px; font-size:0.65rem; border-radius:4px; border:1px solid #ddd; background:var(--card); }
+    .invest-item input { padding:2px 4px; font-size:0.65rem; border-radius:4px; border:1px solid #ddd; flex:1; min-width:50px; background:var(--card); }
+    .round-footer { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+    .round-footer button { flex:1; min-height:36px; border-radius:8px; border:none; font-weight:700; cursor:pointer; font-size:0.8rem; }
+    .fab { position:fixed; right:16px; bottom:calc(76px + env(safe-area-inset-bottom)); z-index:95; width:48px; height:48px; border-radius:50%; background:var(--accent); color:#fff; border:none; font-size:1.4rem; box-shadow:0 4px 14px rgba(10,79,66,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .footer-bar { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:8px; display:flex; gap:6px; z-index:90; flex-wrap:wrap; }
+    .footer-bar button { flex:1; min-height:36px; border-radius:8px; border:none; font-weight:700; font-size:0.7rem; cursor:pointer; }
+    #shareBtn { background:#25D366; color:#fff; }
+    #resetBtn { background:#eef1f0; color:var(--ink); }
+    .share-tab-btn { background:#25D366; color:#fff; border:none; padding:4px 12px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.7rem; margin-left:auto; }
+    .handover-btn { background:var(--accent-dark); color:#fff; border:none; padding:4px 12px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.7rem; }
+    .hide { display:none !important; }
+    .audit-log { max-height:200px; overflow-y:auto; background:#f9fbfa; padding:8px; border-radius:8px; font-size:0.7rem; font-family:monospace; border:1px solid var(--line); }
+    .task-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
+    .task-detail-grid .label { font-weight:600; color:#666; font-size:0.7rem; }
+    .task-detail-grid .value { font-size:0.8rem; }
+    @media (max-width:480px) { .modal-box { max-width:100%; border-radius:16px 16px 0 0; } }
+    .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 24px; border-radius:8px; z-index:9999; font-size:0.9rem; max-width:90%; box-shadow:0 4px 12px rgba(0,0,0,0.3); display:none; }
+    .toast.error { background:#dc2626; }
+    .toast.success { background:#16a34a; }
+    .task-btn { background:var(--accent-soft); border:1px solid var(--accent); color:var(--accent-dark); padding:2px 8px; border-radius:4px; font-size:0.6rem; cursor:pointer; margin-left:4px; }
+    .login-screen { display:none; position:fixed; inset:0; z-index:2000; background:var(--accent-dark); align-items:center; justify-content:center; padding:20px; }
+    .login-screen.open { display:flex; }
+    .login-box { background:var(--card); border-radius:var(--radius); padding:24px; width:100%; max-width:340px; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h2 style="margin-top:0;">🏥 Ward Management</h2>
+    <p style="font-size:0.8rem; color:var(--ink-soft); margin-top:-6px;">Sign in to continue</p>
+    <div class="modal-field"><label>Username</label><input id="loginUsername" autocomplete="username" placeholder="Username"></div>
+    <div class="modal-field"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password"></div>
+    <div id="loginError" style="color:var(--danger); font-size:0.75rem; min-height:1em; margin-bottom:6px;"></div>
+    <button id="loginBtn" class="modal-save-btn" style="width:100%;">Login</button>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+<div class="top-bar">
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+      <h1>🏥 Ward Management</h1>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div class="sync-status"><span class="sync-dot" id="syncDot"></span><span id="syncText">Online</span></div>
+        <span id="currentUserLabel" style="font-size:0.7rem; opacity:0.9; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+        <button id="logoutBtn" title="Logout" style="background:rgba(255,255,255,0.15); border:none; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75rem; cursor:pointer;">🚪 Logout</button>
+      </div>
+    </div>
+    <div class="date-nav">
+      <button id="prevDayBtn">◀</button>
+      <span class="date-label" id="dateDisplay"></span>
+      <button id="nextDayBtn">▶</button>
+      <button id="todayBtn">Today</button>
+      <input type="date" id="datePicker">
+    </div>
+  </header>
+  <div class="tab-container">
+    <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+    <button class="tab-btn" data-tab="reports">📋 Reports</button>
+    <button class="tab-btn" data-tab="tasks">📌 Tasks</button>
+    <button class="tab-btn" data-tab="autotasks">⚡ Auto Tasks</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="tab-content active">
+  <div class="search-wrap">
+    <div class="search-box"><input id="searchInput" placeholder="Search…"></div>
+    <button class="filter-toggle-btn" id="filterToggleBtn">⚙️</button>
+    <button class="share-tab-btn" id="shareDashboardBtn">📤 Share</button>
+  </div>
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-grid">
+      <div class="filter-field"><label>Ward</label><select id="fWard"><option value="">All</option><option value="FSW">FSW</option><option value="MSW">MSW</option><option value="SPECIAL">Special</option></select></div>
+      <div class="filter-field"><label>Consultant</label><select id="fConsultant"><option value="">All</option></select></div>
+      <div class="filter-field"><label>Diagnosis</label><input id="fDiagnosis" placeholder="contains"></div>
+      <div class="filter-field"><label>POD</label><input id="fPod" type="number" placeholder="Exact"></div>
+    </div>
+    <div class="filter-toggles">
+      <button class="filter-chip" id="fPendingRound">⏳ Pending Round</button>
+      <button class="filter-chip" id="fDischargeToday">🏠 Discharge Today</button>
+    </div>
+    <div class="filter-clear-row"><button id="fClearBtn">Clear all</button></div>
+  </div>
+  <div class="summary-grid" id="summaryGrid"></div>
+  <div id="wardSections"></div>
+  <div class="no-results" id="noResults" style="display:none;">No patients match filters.</div>
+  <button class="fab" id="addPatientBtn">➕</button>
+</div>
+
+<!-- REPORTS -->
+<div id="reports" class="tab-content">
+  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+    <button class="share-tab-btn" id="shareReportBtn">📤 Share Report</button>
+    <button class="handover-btn" id="handoverBtn">🌙 Night Handover</button>
+    <button class="handover-btn" id="dailyReportBtn">📋 Today's Report</button>
+  </div>
+  <div id="reportContent" style="font-size:0.85rem; max-height:500px; overflow-y:auto; background:#f9fbfa; padding:12px; border-radius:8px; border:1px solid var(--line);">
+    <pre id="reportLog" style="margin:0; white-space:pre-wrap; font-family:inherit;"></pre>
+  </div>
+  <div style="margin-top:12px;">
+    <h4 style="margin:6px 0;">📜 Audit Trail</h4>
+    <div class="audit-log" id="auditLog">Loading…</div>
+  </div>
+</div>
+
+<!-- TASKS -->
+<div id="tasks" class="tab-content">
+  <div class="task-board-toolbar">
+    <button class="add-btn" id="addTaskBtn">➕ Manual Task</button>
+    <button class="share-tab-btn" id="shareTasksBtn">📤 Share</button>
+    <div class="task-filters">
+      <select id="taskFilterPerson"><option value="">All assigned</option></select>
+      <select id="taskFilterPriority"><option value="">Priority</option><option value="critical">🔴</option><option value="high">🟠</option><option value="medium">🟡</option><option value="low">🟢</option></select>
+      <select id="taskFilterStatus"><option value="">Status</option><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="inprogress">In Progress</option><option value="complete">Complete</option><option value="incomplete">Incomplete</option><option value="cancelled">Cancelled</option></select>
+      <select id="taskFilterWard"><option value="">All wards</option><option value="FSW">FSW</option><option value="MSW">MSW</option><option value="SPECIAL">Special</option></select>
+    </div>
+  </div>
+  <div class="task-counters" id="taskCounters"></div>
+  <div class="task-board" id="taskBoard"></div>
+</div>
+
+<!-- AUTO TASKS -->
+<div id="autotasks" class="tab-content">
+  <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+    <span style="font-weight:700; font-size:0.85rem;">⚡ Auto-generated from rounds</span>
+    <button class="share-tab-btn" id="shareAutoTasksBtn">📤 Share</button>
+    <div class="task-filters">
+      <select id="autoFilterWard"><option value="">All wards</option><option value="FSW">FSW</option><option value="MSW">MSW</option><option value="SPECIAL">Special</option></select>
+      <select id="autoFilterPriority"><option value="">Priority</option><option value="critical">🔴</option><option value="high">🟠</option><option value="medium">🟡</option><option value="low">🟢</option></select>
+      <select id="autoFilterStatus"><option value="">Status</option><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="inprogress">In Progress</option><option value="complete">Complete</option><option value="incomplete">Incomplete</option><option value="cancelled">Cancelled</option></select>
+    </div>
+  </div>
+  <div class="task-counters" id="autoTaskCounters"></div>
+  <div class="task-board" id="autoTaskBoard"></div>
+</div>
+
+<!-- footer -->
+<div class="footer-bar"><button id="shareBtn">📤 WhatsApp</button><button id="resetBtn">↻ Reset</button></div>
+
+</div><!-- /appRoot -->
+
+<!-- PATIENT MODAL -->
+<div class="modal-overlay" id="patientModal"><div class="modal-box">
+  <h2 id="patientModalTitle">Add Patient</h2>
+  <div class="modal-row"><div class="modal-field"><label>Ward</label><select id="pf_ward"><option value="FSW">FSW</option><option value="MSW">MSW</option><option value="SPECIAL">Special</option></select></div><div class="modal-field"><label>Bed</label><input id="pf_bed" placeholder="e.g. FSW-05"></div></div>
+  <div class="modal-field"><label>Name</label><input id="pf_name" placeholder="Patient name"></div>
+  <div class="modal-row"><div class="modal-field"><label>Age</label><input id="pf_age" type="number" placeholder="Age"></div><div class="modal-field"><label>Sex</label><select id="pf_sex"><option value="M">M</option><option value="F">F</option><option value="O">O</option></select></div><div class="modal-field"><label>UHID</label><input id="pf_uhid" placeholder="UHID"></div></div>
+  <div class="modal-field"><label>Diagnosis</label><input id="pf_diagnosis" placeholder="Diagnosis"></div>
+  <div class="modal-row"><div class="modal-field"><label>Consultant</label><input id="pf_consultant" placeholder="Consultant name"></div><div class="modal-field"><label>Status</label><select id="pf_status"><option value="stable">🟢 Stable</option><option value="moderate">🟡 Moderate</option><option value="urgent">🟠 Urgent</option><option value="critical">🔴 Critical</option></select></div></div>
+  <div class="modal-row"><div class="modal-field"><label>POD</label><input id="pf_pod" type="number" placeholder="POD"></div><div class="modal-field"><label>DOA</label><input id="pf_doa" placeholder="e.g. Today"></div></div>
+  <div class="modal-actions"><button class="modal-cancel-btn" id="patientModalCancel">Cancel</button><button class="modal-save-btn" id="patientModalSave">Save</button></div>
+</div></div>
+
+<!-- MANUAL TASK MODAL -->
+<div class="modal-overlay" id="taskModal"><div class="modal-box">
+  <h2>Manual Task</h2>
+  <div style="font-size:0.7rem; color:#666; margin-bottom:8px;">For administrative tasks only (Call relative, Collect records, Blood arrangement, etc.)</div>
+  <div class="modal-field"><label>Patient</label>
+    <select id="tf_patient_select"><option value="">Select a patient...</option></select>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field"><label>Ward</label><input id="tf_ward" readonly style="background:#f0f0f0;"></div>
+    <div class="modal-field"><label>Bed</label><input id="tf_bed" readonly style="background:#f0f0f0;"></div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field"><label>UHID</label><input id="tf_uhid" readonly style="background:#f0f0f0;"></div>
+    <div class="modal-field"><label>Diagnosis</label><input id="tf_diagnosis" readonly style="background:#f0f0f0;"></div>
+  </div>
+  <div class="modal-field"><label>Consultant</label><input id="tf_consultant" readonly style="background:#f0f0f0;"></div>
+  <div class="modal-field"><label>Task</label><textarea id="tf_task" placeholder="e.g. Collect old records, Call relative, Arrange blood"></textarea></div>
+  <div class="modal-row"><div class="modal-field"><label>Assigned To</label><input id="tf_assigned"></div><div class="modal-field"><label>Priority</label><select id="tf_priority"><option value="critical">🔴 Emergency</option><option value="high">🟠 High</option><option value="medium" selected>🟡 Medium</option><option value="low">🟢 Low</option></select></div></div>
+  <div class="modal-field"><label>Due Time</label><input id="tf_due" type="datetime-local"></div>
+  <div class="modal-field"><label>Comments</label><textarea id="tf_comments"></textarea></div>
+  <div class="modal-actions"><button class="modal-cancel-btn" id="taskModalCancel">Cancel</button><button class="modal-save-btn" id="taskModalSave">Save</button></div>
+</div></div>
+
+<!-- ROUND MODAL -->
+<div class="modal-overlay" id="roundOverlay"><div class="modal-box">
+  <h2 id="roundPatientName">Round — Patient</h2>
+  <div style="font-size:0.75rem; color:#666; margin-bottom:10px;" id="roundPatientSub"></div>
+  <div id="roundContainer"></div>
+  <div class="round-footer">
+    <button class="modal-cancel-btn" id="roundCancelBtn">Cancel</button>
+    <button class="modal-save-btn" id="roundSaveBtn">Save Round</button>
+    <button class="modal-save-btn" id="roundSaveNextBtn" style="background:var(--accent-dark);">Save & Next</button>
+  </div>
+</div></div>
+
+<!-- TASK DETAIL MODAL -->
+<div class="modal-overlay" id="taskDetailModal"><div class="modal-box">
+  <h2 id="taskDetailTitle">Task Details</h2>
+  <div id="taskDetailContent"></div>
+  <div class="modal-field"><label>Change Status</label>
+    <select id="taskDetailStatus"><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="inprogress">In Progress</option><option value="complete">Complete</option><option value="incomplete">Incomplete</option><option value="cancelled">Cancelled</option></select>
+  </div>
+  <div class="modal-field"><label>Assign To</label><input id="taskDetailAssign" placeholder="Name"></div>
+  <div class="modal-field"><label>Comments</label><textarea id="taskDetailComment" placeholder="Add comment..."></textarea></div>
+  <div class="modal-actions"><button class="modal-cancel-btn" id="taskDetailCancel">Close</button><button class="modal-save-btn" id="taskDetailSave">Update</button></div>
+</div></div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+
+<script>
+// ============ TOAST ============
+function showToast(message, type) {
+  var toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast ' + (type || '');
+  toast.style.display = 'block';
+  setTimeout(function() { toast.style.display = 'none'; }, 4000);
+}
+
+// ============ FIREBASE CONFIG (hardcoded project) ============
+var firebaseConfig = {
+  apiKey: "AIzaSyAGQ8ThOGYNAmf7hgZbyY4cRpfsYG-Egk8",
+  authDomain: "wms-ip-fae23.firebaseapp.com",
+  databaseURL: "https://wms-ip-fae23-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "wms-ip-fae23",
+  storageBucket: "wms-ip-fae23.firebasestorage.app",
+  messagingSenderId: "603153832435",
+  appId: "1:603153832435:web:aae9f8118c17ff2b2e9a86"
+};
+// If staff log in with a bare username instead of a full email, it is expanded
+// with this domain before being sent to Firebase Auth. Change this to match
+// the domain used when the Firebase Auth user accounts were created.
+var LOGIN_EMAIL_DOMAIN = '@hospital.local';
+
+function updateConnectionStatus(mode) {
+  try {
+    var dot = document.getElementById('syncDot');
+    var text = document.getElementById('syncText');
+    if (!dot || !text) return;
+    if (mode === 'saving') { dot.className = 'sync-dot saving'; text.textContent = 'Saving…'; }
+    else if (mode === 'online') { dot.className = 'sync-dot'; text.textContent = 'Online'; }
+    else if (mode === 'error') { dot.className = 'sync-dot offline'; text.textContent = 'Connection Error'; }
+    else if (mode === 'offline') { dot.className = 'sync-dot offline'; text.textContent = 'No Internet'; }
+  } catch(e) { /* no-op */ }
+}
+
+// ============ FIELDVALUE HELPERS ============
+function fsTimestamp() { return firebase.firestore.FieldValue.serverTimestamp(); }
+function fsArrayUnion(item) { return firebase.firestore.FieldValue.arrayUnion(item); }
+
+// Returns the email of the currently signed-in user, for audit trail fields
+// (createdBy / updatedBy / roundedBy / completedBy).
+function currentUserEmail() {
+  return (auth && auth.currentUser && auth.currentUser.email) || 'Unknown';
+}
+
+// ============ INITIALIZE FIREBASE ============
+var db, auth;
+firebase.initializeApp(firebaseConfig);
+db = firebase.firestore();
+auth = firebase.auth();
+db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+  console.warn('Firestore persistence error:', err);
+});
+
+window.addEventListener('online', function() { updateConnectionStatus('online'); });
+window.addEventListener('offline', function() { updateConnectionStatus('offline'); });
+
+// ============ AUTHENTICATION (Email/Password) ============
+var _appStarted = false;
+
+function resolveLoginEmail(usernameOrEmail) {
+  var val = (usernameOrEmail || '').trim();
+  return val.indexOf('@') === -1 ? val + LOGIN_EMAIL_DOMAIN : val;
+}
+
+function showLoginScreen() {
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginScreen').classList.add('open');
+}
+
+function showAppScreen(user) {
+  document.getElementById('loginScreen').classList.remove('open');
+  document.getElementById('appRoot').style.display = '';
+  document.getElementById('currentUserLabel').textContent = user.email;
+  if (!_appStarted) {
+    _appStarted = true;
+    startApp();
+  }
+}
+
+// Session persistence: stay logged in across reloads/tabs until explicit logout.
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .catch(function(err) { console.warn('Auth persistence error:', err); })
+  .then(function() {
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        showAppScreen(user);
+        updateConnectionStatus('online');
+      } else {
+        showLoginScreen();
+      }
+    });
+  });
+
+document.getElementById('loginBtn').addEventListener('click', function() {
+  var errBox = document.getElementById('loginError');
+  errBox.textContent = '';
+  var email = resolveLoginEmail(document.getElementById('loginUsername').value);
+  var password = document.getElementById('loginPassword').value;
+  if (!email || !password) { errBox.textContent = 'Username and password are required'; return; }
+  var btn = this;
+  btn.disabled = true;
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(function(err) {
+      console.error('Login error:', err);
+      errBox.textContent = err.message || 'Login failed';
+    })
+    .finally(function() { btn.disabled = false; });
+});
+
+document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', function() {
+  auth.signOut();
+});
+
+// ============ COLLECTION REFERENCES ============
+var patientsCol = db.collection('wardPatients');
+var tasksCol = db.collection('wardTasks');
+var autoTasksCol = db.collection('autoTasks');
+var eventsCol = db.collection('wardEvents');
+var auditCol = db.collection('audit');
+
+// ============ STATE ============
+var patients = [];
+var manualTasks = [];
+var autoTasks = [];
+var events = [];
+var audit = [];
+var editingPatientId = null;
+var currentViewDate = new Date();
+var roundPatientId = null;
+
+// ============ HELPERS ============
+function isSameDay(d1, d2) {
+  if (!d1 || !d2) return false;
+  return d1.getFullYear() === d2.getFullYear() && 
+         d1.getMonth() === d2.getMonth() && 
+         d1.getDate() === d2.getDate();
+}
+
+function toDate(ts) {
+  if (!ts) return null;
+  if (typeof ts.toDate === 'function') return ts.toDate();
+  if (ts instanceof Date) return ts;
+  if (typeof ts === 'string') return new Date(ts);
+  return null;
+}
+
+function formatTime(d) {
+  if (!d) return '';
+  var date = d instanceof Date ? d : new Date(d);
+  return date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function formatDateLong(d) {
+  if (!d) return '';
+  var date = d instanceof Date ? d : new Date(d);
+  return date.toLocaleDateString('en-GB', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+}
+
+function wardMeta(id) {
+  return {id: id, label: id === 'FSW' ? 'Female Surgical' : id === 'MSW' ? 'Male Surgical' : 'Special Ward'};
+}
+
+function getViewDate() { return currentViewDate; }
+
+// ============ DATE NAV ============
+function updateDateDisplay() {
+  document.getElementById('dateDisplay').textContent = formatDateLong(currentViewDate);
+  document.getElementById('datePicker').value = currentViewDate.toISOString().split('T')[0];
+  renderAll();
+}
+
+document.getElementById('prevDayBtn').addEventListener('click', function() {
+  currentViewDate.setDate(currentViewDate.getDate() - 1);
+  updateDateDisplay();
+});
+
+document.getElementById('nextDayBtn').addEventListener('click', function() {
+  currentViewDate.setDate(currentViewDate.getDate() + 1);
+  updateDateDisplay();
+});
+
+document.getElementById('todayBtn').addEventListener('click', function() {
+  currentViewDate = new Date();
+  updateDateDisplay();
+});
+
+document.getElementById('datePicker').addEventListener('change', function() {
+  currentViewDate = new Date(this.value + 'T00:00:00');
+  updateDateDisplay();
+});
+
+// ============ REAL-TIME LISTENERS ============
+var _listenerErrorShown = false;
+function handleListenerError(label, err) {
+  console.error(label + ' listener error:', err);
+  updateConnectionStatus('error');
+  if (!_listenerErrorShown) {
+    _listenerErrorShown = true;
+    showToast(label + ' sync failed: ' + (err && err.message ? err.message : 'check Firestore rules/config'), 'error');
+    setTimeout(function() { _listenerErrorShown = false; }, 6000);
+  }
+}
+
+function listen() {
+  try {
+    patientsCol.onSnapshot(function(snap) {
+      patients = snap.docs.map(function(d) { return {id: d.id, ...d.data()}; });
+      renderAll();
+    }, function(err) { handleListenerError('Patients', err); });
+
+    tasksCol.onSnapshot(function(snap) {
+      manualTasks = snap.docs.map(function(d) { return {id: d.id, ...d.data()}; });
+      renderAll();
+    }, function(err) { handleListenerError('Tasks', err); });
+
+    autoTasksCol.onSnapshot(function(snap) {
+      autoTasks = snap.docs.map(function(d) { return {id: d.id, ...d.data()}; });
+      renderAll();
+    }, function(err) { handleListenerError('Auto tasks', err); });
+
+    eventsCol.orderBy('at', 'desc').limit(200).onSnapshot(function(snap) {
+      events = snap.docs.map(function(d) { return {id: d.id, ...d.data()}; });
+      renderAll();
+    }, function(err) { handleListenerError('Events', err); });
+
+    auditCol.orderBy('time', 'desc').limit(100).onSnapshot(function(snap) {
+      audit = snap.docs.map(function(d) { return {id: d.id, ...d.data()}; });
+      renderAudit();
+    }, function(err) { handleListenerError('Audit', err); });
+  } catch(err) {
+    console.error('Listen setup error:', err);
+    showToast('Failed to start data sync: ' + err.message, 'error');
+  }
+}
+
+// ============ RENDER ALL ============
+function renderAll() {
+  try {
+    var viewDate = getViewDate();
+    renderSummary(viewDate);
+    renderWards(viewDate);
+    renderAllTasks(viewDate);
+    renderAutoTasks(viewDate);
+    renderReports(viewDate);
+    populateConsultantFilter();
+    populateManualTaskDropdown();
+    updateTaskCounters(viewDate);
+    updateAutoTaskCounters(viewDate);
+  } catch(err) {
+    console.error('Render error:', err);
+  }
+}
+
+// ============ SUMMARY ============
+function renderSummary(viewDate) {
+  try {
+    var total = patients.length;
+    var fsw = patients.filter(function(p) { return p.ward === 'FSW'; }).length;
+    var msw = patients.filter(function(p) { return p.ward === 'MSW'; }).length;
+    var special = patients.filter(function(p) { return p.ward === 'SPECIAL'; }).length;
+    var discharged = events.filter(function(e) {
+      return e.type === 'discharge' && isSameDay(toDate(e.at) || new Date(e.at), viewDate);
+    }).length;
+    var deaths = events.filter(function(e) {
+      return e.type === 'death' && isSameDay(toDate(e.at) || new Date(e.at), viewDate);
+    }).length;
+    var rounded = patients.filter(function(p) {
+      return isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), viewDate);
+    }).length;
+    var pending = total - rounded;
+    
+    document.getElementById('summaryGrid').innerHTML = 
+      '<div class="metric-card fsw"><div class="metric-label">FSW</div><div class="metric-value">' + fsw + '</div></div>' +
+      '<div class="metric-card msw"><div class="metric-label">MSW</div><div class="metric-value">' + msw + '</div></div>' +
+      '<div class="metric-card special"><div class="metric-label">Special</div><div class="metric-value">' + special + '</div></div>' +
+      '<div class="metric-card"><div class="metric-label">Total</div><div class="metric-value">' + total + '</div></div>' +
+      '<div class="metric-card"><div class="metric-label">Admissions</div><div class="metric-value">' + events.filter(function(e) { return e.type === 'admission' && isSameDay(toDate(e.at) || new Date(e.at), viewDate); }).length + '</div></div>' +
+      '<div class="metric-card"><div class="metric-label">Discharges</div><div class="metric-value">' + discharged + '</div></div>' +
+      '<div class="metric-card' + (deaths ? ' critical' : '') + '"><div class="metric-label">Deaths</div><div class="metric-value">' + deaths + '</div></div>' +
+      '<div class="metric-card"><div class="metric-label">Rounds Done</div><div class="metric-value">' + rounded + '</div></div>' +
+      '<div class="metric-card warn"><div class="metric-label">Rounds Pending</div><div class="metric-value">' + pending + '</div></div>';
+  } catch(err) {
+    console.error('Summary render error:', err);
+  }
+}
+
+// ============ WARDS ============
+function getFilteredPatients(viewDate) {
+  try {
+    var term = document.getElementById('searchInput').value.trim().toLowerCase();
+    var fWard = document.getElementById('fWard').value;
+    var fConsultant = document.getElementById('fConsultant').value;
+    var fDiag = document.getElementById('fDiagnosis').value.trim().toLowerCase();
+    var fPod = document.getElementById('fPod').value;
+    var pendingRound = document.getElementById('fPendingRound').classList.contains('active');
+    var dischargeToday = document.getElementById('fDischargeToday').classList.contains('active');
+    
+    return patients.filter(function(p) {
+      if (term && !(p.name || '').toLowerCase().includes(term) && !(p.bed || '').toLowerCase().includes(term) && !(p.diagnosis || '').toLowerCase().includes(term) && !(p.uhid || '').toLowerCase().includes(term)) return false;
+      if (fWard && p.ward !== fWard) return false;
+      if (fConsultant && p.consultant !== fConsultant) return false;
+      if (fDiag && !(p.diagnosis || '').toLowerCase().includes(fDiag)) return false;
+      if (fPod !== '' && String(p.pod || '') !== String(fPod)) return false;
+      if (pendingRound && isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), viewDate)) return false;
+      if (dischargeToday && !(p.round && p.round.procedure && p.round.procedure.includes('Discharge Today') && isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), viewDate))) return false;
+      return true;
+    });
+  } catch(err) {
+    console.error('Filter error:', err);
+    return [];
+  }
+}
+
+function renderWards(viewDate) {
+  try {
+    var container = document.getElementById('wardSections');
+    var filtered = getFilteredPatients(viewDate);
+    document.getElementById('noResults').style.display = filtered.length === 0 && patients.length > 0 ? 'block' : 'none';
+    container.innerHTML = '';
+    
+    ['FSW', 'MSW', 'SPECIAL'].forEach(function(wardId) {
+      var wardPatients = filtered.filter(function(p) { return p.ward === wardId; });
+      var w = wardMeta(wardId);
+      var section = document.createElement('div');
+      section.className = 'ward-section';
+      section.innerHTML = '<div class="ward-section-header"><span class="ward-dot ' + wardId.toLowerCase() + '"></span><span class="ward-section-title">' + w.label + '</span><span class="ward-section-count">(' + wardPatients.length + ')</span></div>';
+      var grid = document.createElement('div');
+      grid.className = 'ward-cards-grid';
+      if (wardPatients.length === 0) {
+        grid.innerHTML = '<div class="empty-ward">No patients</div>';
+      } else {
+        wardPatients.forEach(function(p) {
+          grid.appendChild(buildPatientCard(p, viewDate));
+        });
+      }
+      section.appendChild(grid);
+      container.appendChild(section);
+    });
+  } catch(err) {
+    console.error('Wards render error:', err);
+  }
+}
+
+function buildPatientCard(p, viewDate) {
+  try {
+    var card = document.createElement('div');
+    var rounded = isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), viewDate);
+    var wardCls = (p.ward || 'fsw').toLowerCase();
+    card.className = 'patient-card ward-' + wardCls + (rounded ? ' rounded-today' : '');
+    
+    var statusEmoji = {critical:'🔴', urgent:'🟠', moderate:'🟡', stable:'🟢'}[p.status] || '⚪';
+    var statusLabel = {critical:'Critical', urgent:'Urgent', moderate:'Moderate', stable:'Stable'}[p.status] || '';
+    var pod = (p.pod !== undefined && p.pod !== null) ? 'POD ' + p.pod : (p.doa || '');
+    
+    var patientTasks = autoTasks.filter(function(t) { return t.patientId === p.id; });
+    var pendingTasks = patientTasks.filter(function(t) { return t.status === 'pending' || t.status === 'accepted'; }).length;
+    var completedTasks = patientTasks.filter(function(t) { return t.status === 'complete'; }).length;
+    
+    var icons = [];
+    if (p.round && p.round.drains && p.round.drains.some(function(d) { return d.status === 'Keep'; })) icons.push('🩸');
+    if (p.round && p.round.ivFluids && p.round.ivFluids !== 'No IV Fluids') icons.push('💉');
+    if (p.round && p.round.medNoChange === false) icons.push('💊');
+    if (p.round && p.round.investigations && p.round.investigations.some(function(i) { return i.status === 'Result Awaited' || i.status === 'Requested'; })) icons.push('🧪');
+    if (p.round && p.round.referrals && p.round.referrals.some(function(r) { return r.status === 'Pending'; })) icons.push('📞');
+    if (p.round && p.round.woundStatus && p.round.woundStatus !== 'Healthy' && p.round.woundStatus !== 'N/A') icons.push('🩹');
+    if (p.round && p.round.procedure && p.round.procedure.includes('Discharge Today')) icons.push('🏠');
+    if (p.status === 'critical') icons.push('⚠');
+    icons.push(rounded ? '✅' : '⏳');
+    
+    card.innerHTML = 
+      '<div class="pc-top"><div><div class="pc-bed">Bed ' + (p.bed || '—') + '</div><div class="pc-name">' + (p.name || 'Unnamed') + '</div><div class="pc-sub">' + (p.age || '?') + '/' + (p.sex || '?') + (p.uhid ? ' · ' + p.uhid : '') + '</div></div>' +
+      '<div class="pc-actions"><button class="pc-edit-btn" title="Edit">✎</button><button class="pc-discharge-btn" title="Discharge">🗑</button><button class="pc-task-btn" title="Add Task">➕Task</button></div></div>' +
+      '<div class="pc-diagnosis">' + pod + ' ' + (p.diagnosis || '') + '</div>' +
+      '<div class="pc-tags"><span class="status-badge ' + (p.status || 'stable') + '">' + statusEmoji + ' ' + statusLabel + '</span>' + (p.consultant ? '<span class="tag-pill">' + p.consultant + '</span>' : '') +
+      (pendingTasks > 0 ? '<span class="tag-pill" style="background:#fef3c7;">⏳ ' + pendingTasks + '</span>' : '') +
+      (completedTasks > 0 ? '<span class="tag-pill" style="background:#d1fae5;">✅ ' + completedTasks + '</span>' : '') +
+      '</div>' +
+      '<div class="pc-bottom"><div><span class="pc-round-status ' + (rounded ? 'done' : '') + '">' + (rounded ? '✔ Rounded' : '⏳ Pending') + '</span>' + (rounded ? '<span class="pc-round-time">' + formatTime(toDate(p.lastRoundAt)) + (p.lastRoundBy ? ' · ' + p.lastRoundBy : '') + '</span>' : '') + '</div>' +
+      '<div class="pc-icons">' + icons.join(' ') + '</div></div>';
+    
+    card.addEventListener('click', function() { openRoundModal(p); });
+    
+    var editBtn = card.querySelector('.pc-edit-btn');
+    editBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openPatientModal(p);
+    });
+    
+    var dischargeBtn = card.querySelector('.pc-discharge-btn');
+    dischargeBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (confirm('Discharge ' + (p.name || '') + '?')) {
+        patientsCol.doc(p.id).delete()
+          .then(function() {
+            auditCol.add({ action: 'Discharged ' + p.name, user: currentUserEmail(), time: new Date().toISOString() });
+            eventsCol.add({ type: 'discharge', patient: p.name, ward: p.ward, at: new Date().toISOString() });
+            showToast('Patient discharged successfully', 'success');
+          })
+          .catch(function(err) {
+            console.error('Delete error:', err);
+            showToast('Error: ' + err.message, 'error');
+          });
+      }
+    });
+    
+    var taskBtn = card.querySelector('.pc-task-btn');
+    taskBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openManualTaskForPatient(p);
+    });
+    
+    return card;
+  } catch(err) {
+    console.error('Build card error:', err);
+    var fallback = document.createElement('div');
+    fallback.textContent = 'Error loading patient';
+    return fallback;
+  }
+}
+
+function populateConsultantFilter() {
+  try {
+    var sel = document.getElementById('fConsultant');
+    var cur = sel.value;
+    var names = [];
+    patients.forEach(function(p) {
+      if (p.consultant && names.indexOf(p.consultant) === -1) names.push(p.consultant);
+    });
+    names.sort();
+    sel.innerHTML = '<option value="">All Consultants</option>' + names.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
+    if (names.indexOf(cur) !== -1) sel.value = cur;
+  } catch(err) {
+    console.error('Populate consultant filter error:', err);
+  }
+}
+
+// ============ PATIENT MODAL ============
+function openPatientModal(p) {
+  try {
+    editingPatientId = p ? p.id : null;
+    document.getElementById('patientModalTitle').textContent = p ? 'Edit Patient' : 'Add Patient';
+    document.getElementById('pf_ward').value = p ? p.ward : 'FSW';
+    document.getElementById('pf_name').value = p ? p.name : '';
+    document.getElementById('pf_bed').value = p ? p.bed : '';
+    document.getElementById('pf_age').value = p ? p.age : '';
+    document.getElementById('pf_sex').value = p ? p.sex : 'M';
+    document.getElementById('pf_uhid').value = p ? p.uhid : '';
+    document.getElementById('pf_diagnosis').value = p ? p.diagnosis : '';
+    document.getElementById('pf_consultant').value = p ? p.consultant : '';
+    document.getElementById('pf_status').value = p ? p.status : 'stable';
+    document.getElementById('pf_pod').value = p && p.pod !== undefined && p.pod !== null ? p.pod : '';
+    document.getElementById('pf_doa').value = p ? p.doa : '';
+    document.getElementById('patientModal').classList.add('open');
+  } catch(err) {
+    console.error('Open patient modal error:', err);
+    showToast('Error opening form: ' + err.message, 'error');
+  }
+}
+
+function closePatientModal() {
+  document.getElementById('patientModal').classList.remove('open');
+}
+
+document.getElementById('patientModalCancel').addEventListener('click', closePatientModal);
+
+document.getElementById('patientModalSave').addEventListener('click', function() {
+  try {
+    var name = document.getElementById('pf_name').value.trim();
+    if (!name) {
+      showToast('Name is required', 'error');
+      return;
+    }
+    
+    var data = {
+      ward: document.getElementById('pf_ward').value,
+      name: name,
+      bed: document.getElementById('pf_bed').value.trim(),
+      age: parseInt(document.getElementById('pf_age').value) || null,
+      sex: document.getElementById('pf_sex').value,
+      uhid: document.getElementById('pf_uhid').value.trim(),
+      diagnosis: document.getElementById('pf_diagnosis').value.trim(),
+      consultant: document.getElementById('pf_consultant').value.trim(),
+      status: document.getElementById('pf_status').value,
+      pod: document.getElementById('pf_pod').value ? parseInt(document.getElementById('pf_pod').value) : null,
+      doa: document.getElementById('pf_doa').value.trim()
+    };
+    
+    if (editingPatientId) {
+      patientsCol.doc(editingPatientId).set({...data, updatedBy: currentUserEmail(), updatedAt: fsTimestamp()}, { merge: true })
+        .then(function() {
+          auditCol.add({ action: 'Updated patient ' + data.name, user: currentUserEmail(), time: new Date().toISOString() });
+          showToast('Patient updated successfully', 'success');
+          closePatientModal();
+        })
+        .catch(function(err) {
+          console.error('Update error:', err);
+          showToast('Error: ' + err.message, 'error');
+        });
+    } else {
+      patientsCol.add({...data, createdBy: currentUserEmail(), createdAt: fsTimestamp()})
+        .then(function() {
+          auditCol.add({ action: 'Added patient ' + data.name, user: currentUserEmail(), time: new Date().toISOString() });
+          eventsCol.add({ type: 'admission', patient: data.name, ward: data.ward, at: new Date().toISOString() });
+          showToast('Patient added successfully', 'success');
+          closePatientModal();
+        })
+        .catch(function(err) {
+          console.error('Add error:', err);
+          showToast('Error: ' + err.message, 'error');
+        });
+    }
+  } catch(err) {
+    console.error('Save patient error:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+});
+
+// ============ MANUAL TASK ============
+function populateManualTaskDropdown() {
+  try {
+    var sel = document.getElementById('tf_patient_select');
+    var currentVal = sel.value;
+    var options = '<option value="">Select a patient...</option>';
+    var sortedPatients = patients.slice().sort(function(a, b) {
+      if (a.ward !== b.ward) return a.ward.localeCompare(b.ward);
+      return (a.bed || '').localeCompare(b.bed || '');
+    });
+    sortedPatients.forEach(function(p) {
+      var label = p.ward + '-' + (p.bed || '?') + ' ' + p.name;
+      options += '<option value="' + p.id + '">' + label + '</option>';
+    });
+    sel.innerHTML = options;
+    if (currentVal) sel.value = currentVal;
+  } catch(err) {
+    console.error('Populate manual task dropdown error:', err);
+  }
+}
+
+function openManualTaskForPatient(p) {
+  try {
+    document.getElementById('tf_patient_select').value = p.id;
+    fillManualTaskFields(p);
+    document.getElementById('tf_task').value = '';
+    document.getElementById('tf_assigned').value = '';
+    document.getElementById('tf_priority').value = 'medium';
+    document.getElementById('tf_due').value = '';
+    document.getElementById('tf_comments').value = '';
+    document.getElementById('taskModal').classList.add('open');
+  } catch(err) {
+    console.error('Open manual task error:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+function fillManualTaskFields(p) {
+  try {
+    document.getElementById('tf_ward').value = p.ward || '';
+    document.getElementById('tf_bed').value = p.bed || '';
+    document.getElementById('tf_uhid').value = p.uhid || '';
+    document.getElementById('tf_diagnosis').value = p.diagnosis || '';
+    document.getElementById('tf_consultant').value = p.consultant || '';
+  } catch(err) {
+    console.error('Fill manual task fields error:', err);
+  }
+}
+
+document.getElementById('tf_patient_select').addEventListener('change', function() {
+  try {
+    var pid = this.value;
+    if (!pid) {
+      document.getElementById('tf_ward').value = '';
+      document.getElementById('tf_bed').value = '';
+      document.getElementById('tf_uhid').value = '';
+      document.getElementById('tf_diagnosis').value = '';
+      document.getElementById('tf_consultant').value = '';
+      return;
+    }
+    var patient = patients.find(function(p) { return p.id === pid; });
+    if (patient) fillManualTaskFields(patient);
+  } catch(err) {
+    console.error('Patient select change error:', err);
+  }
+});
+
+document.getElementById('addTaskBtn').addEventListener('click', function() {
+  try {
+    document.getElementById('tf_patient_select').value = '';
+    document.getElementById('tf_ward').value = '';
+    document.getElementById('tf_bed').value = '';
+    document.getElementById('tf_uhid').value = '';
+    document.getElementById('tf_diagnosis').value = '';
+    document.getElementById('tf_consultant').value = '';
+    document.getElementById('tf_task').value = '';
+    document.getElementById('tf_assigned').value = '';
+    document.getElementById('tf_priority').value = 'medium';
+    document.getElementById('tf_due').value = '';
+    document.getElementById('tf_comments').value = '';
+    document.getElementById('taskModal').classList.add('open');
+  } catch(err) {
+    console.error('Add task button error:', err);
+  }
+});
+
+document.getElementById('taskModalCancel').addEventListener('click', function() {
+  document.getElementById('taskModal').classList.remove('open');
+});
+
+document.getElementById('taskModalSave').addEventListener('click', function() {
+  try {
+    var patientId = document.getElementById('tf_patient_select').value;
+    if (!patientId) {
+      showToast('Please select a patient', 'error');
+      return;
+    }
+    var patient = patients.find(function(p) { return p.id === patientId; });
+    if (!patient) {
+      showToast('Patient not found', 'error');
+      return;
+    }
+    
+    var taskText = document.getElementById('tf_task').value.trim();
+    if (!taskText) {
+      showToast('Task description is required', 'error');
+      return;
+    }
+    
+    var data = {
+      patient: patient.name,
+      patientId: patient.id,
+      ward: patient.ward,
+      bed: patient.bed,
+      uhid: patient.uhid || '',
+      diagnosis: patient.diagnosis || '',
+      consultant: patient.consultant || '',
+      task: taskText,
+      assignedTo: document.getElementById('tf_assigned').value.trim() || '',
+      priority: document.getElementById('tf_priority').value,
+      dueTime: document.getElementById('tf_due').value || null,
+      comments: document.getElementById('tf_comments').value.trim() || '',
+      status: 'pending',
+      type: 'Manual',
+      history: [{ action: 'Created', time: new Date().toISOString() }]
+    };
+    
+    tasksCol.add({...data, createdBy: currentUserEmail(), createdAt: fsTimestamp()})
+      .then(function() {
+        auditCol.add({ action: 'Created manual task ' + data.task + ' for ' + patient.name, user: currentUserEmail(), time: new Date().toISOString() });
+        showToast('Task created successfully', 'success');
+        document.getElementById('taskModal').classList.remove('open');
+      })
+      .catch(function(err) {
+        console.error('Create task error:', err);
+        showToast('Error: ' + err.message, 'error');
+      });
+  } catch(err) {
+    console.error('Save task error:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+});
+
+// ============ ROUND MODAL ============
+function openRoundModal(p) {
+  try {
+    if (!p) return;
+    roundPatientId = p.id;
+    var round = p.round || {};
+    document.getElementById('roundPatientName').textContent = 'Round — ' + (p.name || '');
+    document.getElementById('roundPatientSub').textContent = 'Bed ' + (p.bed || '—') + ' · ' + (p.age || '?') + '/' + (p.sex || '?') + ' · ' + (p.diagnosis || '');
+    var container = document.getElementById('roundContainer');
+    container.innerHTML = buildRoundHTML(round);
+    bindRoundEvents();
+    document.getElementById('roundOverlay').classList.add('open');
+  } catch(err) {
+    console.error('Open round modal error:', err);
+    showToast('Error opening round: ' + err.message, 'error');
+  }
+}
+
+function buildRoundHTML(round) {
+  try {
+    var sections = [
+      { id: 'yesterday', label: '1. Yesterday\'s Orders', fields: [
+        { key: 'yesterdayStatus', label: 'Status', type: 'select', options: ['Completed','Partially Completed','Incomplete'] },
+        { key: 'yesterdayComment', label: 'Comment', type: 'text' }
+      ]},
+      { id: 'clinical', label: '2. Clinical Progress', fields: [
+        { key: 'clinicalProgress', label: 'Progress', type: 'textarea', placeholder: 'e.g. Pain improved, no fever…' }
+      ]},
+      { id: 'monitoring', label: '3. Monitoring', fields: [
+        { key: 'monitoringStatus', label: 'Status', type: 'select', options: ['Normal','Abnormal'] },
+        { key: 'monitoringDetails', label: 'Details', type: 'text', placeholder: 'TPR, BP, SpO2…' }
+      ]},
+      { id: 'investigations', label: '4. Investigations', fields: [
+        { key: 'investigations', label: '', type: 'investigations' }
+      ]},
+      { id: 'referrals', label: '5. Referrals / Opinions', fields: [
+        { key: 'referralDept', label: 'Department', type: 'select', options: ['Medicine','Cardiology','Pulmonology','Nephrology','Neurology','Anaesthesia','Plastic Surgery','Orthopaedics','ENT','Urology','Other'] },
+        { key: 'referralStatus', label: 'Status', type: 'select', options: ['Requested','Seen','Advice Received','Pending'] },
+        { key: 'referralComment', label: 'Comments', type: 'text' }
+      ]},
+      { id: 'diet', label: '6. Diet', fields: [
+        { key: 'diet', label: 'Diet', type: 'select', options: ['Normal','Soft','Liquid','NBM','Diabetic','Renal','High Protein','Tube Feeding','TPN','Other'] },
+        { key: 'dietNa', label: 'N/A', type: 'na' }
+      ]},
+      { id: 'ivfluids', label: '7. IV Fluids', fields: [
+        { key: 'ivFluids', label: 'Type', type: 'select', options: ['No IV Fluids','DNS','NS','RL','D5','D10','Other'] },
+        { key: 'ivVolume', label: 'Volume', type: 'select', options: ['500 mL','1 L','2 L','3 L'] },
+        { key: 'ivRate', label: 'Rate (mL/hr)', type: 'text' },
+        { key: 'ivComment', label: 'Comment', type: 'text' },
+        { key: 'ivNa', label: 'N/A', type: 'na' }
+      ]},
+      { id: 'medication', label: '8. Medication', fields: [
+        { key: 'medicationChanges', label: 'Medication Changes', type: 'textarea', placeholder: 'Changes …' },
+        { key: 'medNoChange', label: 'No Changes', type: 'checkbox' }
+      ]},
+      { id: 'wound', label: '9. Wound / Dressing', fields: [
+        { key: 'woundStatus', label: 'Status', type: 'select', options: ['Healthy','Normal Saline Dressing','Betadine Dressing','VAC Dressing','Secondary Suturing','Soakage','Infected','Opened','Other'] },
+        { key: 'woundComment', label: 'Comments', type: 'text' },
+        { key: 'woundNa', label: 'N/A', type: 'na' }
+      ]},
+      { id: 'drains', label: '10. Drains / Tubes / Lines', fields: [
+        { key: 'drains', label: '', type: 'drains' }
+      ]},
+      { id: 'mobilization', label: '11. Mobilization / Physiotherapy', fields: [
+        { key: 'mobilization', label: 'Status', type: 'select', options: ['Bed Rest','Chair','Walking','Walking with Support','Physiotherapy','N/A'] }
+      ]},
+      { id: 'procedure', label: '12. Procedure', fields: [
+        { key: 'procedure', label: 'Procedure', type: 'select', options: ['None','Dressing','Minor OT','Major OT','Discharge Today','Shift ICU','Shift Ward','Procedure Tomorrow','Other'] },
+        { key: 'procedureComment', label: 'Comments', type: 'text' }
+      ]},
+      { id: 'review', label: '13. Review Plan', fields: [
+        { key: 'reviewPlan', label: 'Review Plan', type: 'textarea', placeholder: 'Verbatim consultant instructions' }
+      ]}
+    ];
+    
+    var html = '';
+    sections.forEach(function(s) {
+      html += '<div class="round-section"><div class="round-section-header"><span>' + s.label + '</span><div class="actions">';
+      html += '<label><input type="checkbox" class="section-complete" data-section="' + s.id + '" ' + (round[s.id + 'Complete'] ? 'checked' : '') + '> ✔ Complete</label>';
+      if (s.fields.some(function(f) { return f.type === 'na'; })) {
+        html += '<label><input type="checkbox" class="na-toggle" data-section="' + s.id + '" ' + (round[s.id + 'Na'] ? 'checked' : '') + '> N/A</label>';
+      }
+      html += '</div></div><div class="round-section-body" data-section="' + s.id + '">';
+      s.fields.forEach(function(f) {
+        if (f.type === 'na') return;
+        if (f.type === 'textarea') {
+          html += '<div class="round-field"><label>' + f.label + '</label><textarea data-key="' + f.key + '" placeholder="' + (f.placeholder || '') + '">' + (round[f.key] || '') + '</textarea></div>';
+        } else if (f.type === 'checkbox') {
+          html += '<div class="round-field"><label><input type="checkbox" data-key="' + f.key + '" ' + (round[f.key] ? 'checked' : '') + '> ' + f.label + '</label></div>';
+        } else if (f.type === 'investigations') {
+          html += '<div class="round-field"><label>Investigations</label><div id="investList">';
+          var inv = round.investigations || [];
+          if (inv.length === 0) inv = [{}];
+          inv.forEach(function(item) {
+            html += '<div class="invest-item"><input placeholder="Name" value="' + (item.name || '') + '" class="inv-name"><select class="inv-status"><option ' + (item.status === 'Requested' ? 'selected' : '') + '>Requested</option><option ' + (item.status === 'Sample Sent' ? 'selected' : '') + '>Sample Sent</option><option ' + (item.status === 'Result Awaited' ? 'selected' : '') + '>Result Awaited</option><option ' + (item.status === 'Completed' ? 'selected' : '') + '>Completed</option></select><input placeholder="Comment" value="' + (item.comment || '') + '" class="inv-comment"><button class="del-invest">✕</button></div>';
+          });
+          html += '<button type="button" id="addInvestBtn">+ Add</button></div></div>';
+        } else if (f.type === 'drains') {
+          html += '<div class="round-field"><label>Drains / Tubes</label><div id="drainList">';
+          var drains = round.drains || [];
+          if (drains.length === 0) drains = [{}];
+          drains.forEach(function(d) {
+            html += '<div class="invest-item"><select class="drain-type"><option ' + (d.type === 'Drain' ? 'selected' : '') + '>Drain</option><option ' + (d.type === 'NG Tube' ? 'selected' : '') + '>NG Tube</option><option ' + (d.type === 'Foley' ? 'selected' : '') + '>Foley</option><option ' + (d.type === 'Central Line' ? 'selected' : '') + '>Central Line</option></select><select class="drain-status"><option ' + (d.status === 'Keep' ? 'selected' : '') + '>Keep</option><option ' + (d.status === 'Remove Today' ? 'selected' : '') + '>Remove Today</option><option ' + (d.status === 'Remove Tomorrow' ? 'selected' : '') + '>Remove Tomorrow</option><option ' + (d.status === 'Blocked' ? 'selected' : '') + '>Blocked</option><option ' + (d.status === 'Leaking' ? 'selected' : '') + '>Leaking</option><option ' + (d.status === 'Other' ? 'selected' : '') + '>Other</option></select><input placeholder="Comment" value="' + (d.comment || '') + '" class="drain-comment"><button class="del-drain">✕</button></div>';
+          });
+          html += '<button type="button" id="addDrainBtn">+ Add</button></div></div>';
+        } else if (f.type === 'select') {
+          html += '<div class="round-field"><label>' + f.label + '</label><select data-key="' + f.key + '">' + f.options.map(function(o) { return '<option value="' + o + '" ' + (round[f.key] === o ? 'selected' : '') + '>' + o + '</option>'; }).join('') + '</select></div>';
+        } else {
+          html += '<div class="round-field"><label>' + f.label + '</label><input data-key="' + f.key + '" value="' + (round[f.key] || '') + '" placeholder="' + (f.placeholder || '') + '"></div>';
+        }
+      });
+      html += '</div></div>';
+    });
+    return html;
+  } catch(err) {
+    console.error('Build round HTML error:', err);
+    return '<div class="round-field">Error loading round form</div>';
+  }
+}
+
+function bindRoundEvents() {
+  try {
+    document.querySelectorAll('.na-toggle').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var section = this.dataset.section;
+        var body = document.querySelector('.round-section-body[data-section="' + section + '"]');
+        if (body) body.style.opacity = this.checked ? '0.4' : '1';
+      });
+    });
+    
+    var addInvest = document.getElementById('addInvestBtn');
+    if (addInvest) {
+      addInvest.addEventListener('click', function() {
+        var list = document.getElementById('investList');
+        var div = document.createElement('div');
+        div.className = 'invest-item';
+        div.innerHTML = '<input placeholder="Name" class="inv-name"><select class="inv-status"><option>Requested</option><option>Sample Sent</option><option>Result Awaited</option><option>Completed</option></select><input placeholder="Comment" class="inv-comment"><button type="button" class="del-invest">✕</button>';
+        list.appendChild(div);
+        div.querySelector('.del-invest').addEventListener('click', function() { div.remove(); });
+      });
+    }
+    
+    var addDrain = document.getElementById('addDrainBtn');
+    if (addDrain) {
+      addDrain.addEventListener('click', function() {
+        var list = document.getElementById('drainList');
+        var div = document.createElement('div');
+        div.className = 'invest-item';
+        div.innerHTML = '<select class="drain-type"><option>Drain</option><option>NG Tube</option><option>Foley</option><option>Central Line</option></select><select class="drain-status"><option>Keep</option><option>Remove Today</option><option>Remove Tomorrow</option><option>Blocked</option><option>Leaking</option><option>Other</option></select><input placeholder="Comment" class="drain-comment"><button type="button" class="del-drain">✕</button>';
+        list.appendChild(div);
+        div.querySelector('.del-drain').addEventListener('click', function() { div.remove(); });
+      });
+    }
+    
+    document.querySelectorAll('.del-invest').forEach(function(b) {
+      b.addEventListener('click', function() { this.closest('.invest-item').remove(); });
+    });
+    document.querySelectorAll('.del-drain').forEach(function(b) {
+      b.addEventListener('click', function() { this.closest('.invest-item').remove(); });
+    });
+  } catch(err) {
+    console.error('Bind round events error:', err);
+  }
+}
+
+function collectRoundData() {
+  try {
+    var data = {};
+    
+    // Collect all data-key fields
+    document.querySelectorAll('#roundContainer [data-key]').forEach(function(el) {
+      if (el.type === 'checkbox') {
+        data[el.dataset.key] = el.checked;
+      } else {
+        data[el.dataset.key] = el.value;
+      }
+    });
+    
+    // Collect investigations
+    var inv = [];
+    document.querySelectorAll('#investList .invest-item').forEach(function(row) {
+      var nameInput = row.querySelector('.inv-name');
+      var statusSelect = row.querySelector('.inv-status');
+      var commentInput = row.querySelector('.inv-comment');
+      var name = nameInput ? nameInput.value.trim() : '';
+      if (name) {
+        inv.push({ 
+          name: name, 
+          status: statusSelect ? statusSelect.value : 'Requested', 
+          comment: commentInput ? commentInput.value : '' 
+        });
+      }
+    });
+    data.investigations = inv;
+    
+    // Collect drains
+    var drains = [];
+    document.querySelectorAll('#drainList .invest-item').forEach(function(row) {
+      var typeSelect = row.querySelector('.drain-type');
+      var statusSelect = row.querySelector('.drain-status');
+      var commentInput = row.querySelector('.drain-comment');
+      if (typeSelect && typeSelect.value) {
+        drains.push({ 
+          type: typeSelect.value, 
+          status: statusSelect ? statusSelect.value : 'Keep', 
+          comment: commentInput ? commentInput.value : '' 
+        });
+      }
+    });
+    data.drains = drains;
+    
+    // Collect NA toggles
+    document.querySelectorAll('.na-toggle').forEach(function(cb) {
+      data[cb.dataset.section + 'Na'] = cb.checked;
+    });
+    document.querySelectorAll('.section-complete').forEach(function(cb) {
+      data[cb.dataset.section + 'Complete'] = cb.checked;
+    });
+    
+    return data;
+  } catch(err) {
+    console.error('Collect round data error:', err);
+    return {};
+  }
+}
+
+function closeRoundModal() {
+  document.getElementById('roundOverlay').classList.remove('open');
+}
+
+document.getElementById('roundCancelBtn').addEventListener('click', closeRoundModal);
+
+function saveRoundAndContinue(andNext) {
+  try {
+    if (!roundPatientId) {
+      showToast('No patient selected', 'error');
+      return;
+    }
+    
+    var patient = patients.find(function(p) { return p.id === roundPatientId; });
+    if (!patient) {
+      showToast('Patient not found', 'error');
+      return;
+    }
+    
+    // Collect all round data
+    var roundData = collectRoundData();
+    console.log('Saving round data for:', patient.name);
+    console.log('Round data:', JSON.stringify(roundData));
+    
+    // Build the round object
+    var round = {
+      yesterdayOrders: {
+        status: roundData.yesterdayStatus || '',
+        comment: roundData.yesterdayComment || ''
+      },
+      clinicalProgress: roundData.clinicalProgress || '',
+      monitoring: {
+        status: roundData.monitoringStatus || '',
+        details: roundData.monitoringDetails || ''
+      },
+      investigations: roundData.investigations || [],
+      referrals: {
+        department: roundData.referralDept || '',
+        status: roundData.referralStatus || '',
+        comment: roundData.referralComment || ''
+      },
+      diet: {
+        type: roundData.diet || '',
+        na: roundData.dietNa || false
+      },
+      ivFluids: {
+        type: roundData.ivFluids || '',
+        volume: roundData.ivVolume || '',
+        rate: roundData.ivRate || '',
+        comment: roundData.ivComment || '',
+        na: roundData.ivNa || false
+      },
+      medication: {
+        changes: roundData.medicationChanges || '',
+        noChange: roundData.medNoChange || false
+      },
+      wound: {
+        status: roundData.woundStatus || '',
+        comment: roundData.woundComment || '',
+        na: roundData.woundNa || false
+      },
+      drains: roundData.drains || [],
+      mobilization: roundData.mobilization || '',
+      procedure: roundData.procedure || '',
+      procedureComment: roundData.procedureComment || '',
+      reviewPlan: roundData.reviewPlan || ''
+    };
+    
+    // Save to Firestore (set+merge so the round saves even if the patient doc is missing/stale)
+    var updateData = {
+      round: round,
+      lastRoundAt: fsTimestamp(),
+      lastRoundBy: currentUserEmail(),
+      roundedBy: currentUserEmail(),
+      roundDate: getViewDate().toISOString()
+    };
+    
+    var saveBtn = document.getElementById('roundSaveBtn');
+    var saveNextBtn = document.getElementById('roundSaveNextBtn');
+    var originalSaveText = saveBtn.textContent;
+    var originalSaveNextText = saveNextBtn.textContent;
+    saveBtn.disabled = true;
+    saveNextBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    saveNextBtn.textContent = 'Saving…';
+    updateConnectionStatus('saving');
+    
+    patientsCol.doc(roundPatientId).set(updateData, { merge: true })
+      .then(function() {
+        auditCol.add({ action: 'Round completed for ' + patient.name, user: currentUserEmail(), time: new Date().toISOString() });
+        // Generate auto tasks from this round before finishing up, so the workflow
+        // (Save Round → Generate Auto Tasks → Refresh → Toast → Close) completes as one unit
+        return generateTasksFromRound(patient, round);
+      })
+      .then(function() {
+        updateConnectionStatus('online');
+        renderAll();
+        showToast('Round saved & tasks updated', 'success');
+        closeRoundModal();
+        
+        if (andNext) {
+          // Find next patient with pending round
+          var list = patients.filter(function(p) {
+            return p.id !== patient.id && !isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), getViewDate());
+          });
+          if (list.length > 0) {
+            setTimeout(function() {
+              openRoundModal(list[0]);
+            }, 300);
+          } else {
+            showToast('All patients have been rounded', 'success');
+          }
+        }
+      })
+      .catch(function(err) {
+        console.error('Save round error:', err);
+        updateConnectionStatus('error');
+        showToast('Could not save round: ' + (err && err.message ? err.message : err), 'error');
+      })
+      .finally(function() {
+        saveBtn.disabled = false;
+        saveNextBtn.disabled = false;
+        saveBtn.textContent = originalSaveText;
+        saveNextBtn.textContent = originalSaveNextText;
+      });
+  } catch(err) {
+    console.error('Save round error:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+document.getElementById('roundSaveBtn').addEventListener('click', function() {
+  saveRoundAndContinue(false);
+});
+
+document.getElementById('roundSaveNextBtn').addEventListener('click', function() {
+  saveRoundAndContinue(true);
+});
+
+// ============ AUTO TASK GENERATION ============
+// Returns a Promise so callers (e.g. saveRoundAndContinue) can chain: save round → generate
+// tasks → refresh UI → toast → close, as a single reliable workflow.
+function generateTasksFromRound(patient, round) {
+  return new Promise(function(resolve, reject) {
+  try {
+    if (!patient || !round) {
+      console.log('No patient or round data');
+      resolve();
+      return;
+    }
+    
+    console.log('Generating auto tasks for:', patient.name);
+    var tasksToCreate = [];
+    var today = getViewDate().toISOString().split('T')[0];
+    
+    // 1. Investigations
+    var investMap = {
+      'CBC':'medium','RFT':'medium','LFT':'medium','Electrolytes':'medium',
+      'CRP':'medium','ECG':'medium','Chest X-ray':'medium','USG':'medium',
+      'CT':'high','MRI':'high','Blood Culture':'high','Urine Culture':'high',
+      'ABG':'high','Culture':'medium','Other':'medium'
+    };
+    
+    if (round.investigations && round.investigations.length > 0) {
+      round.investigations.forEach(function(inv) {
+        if (inv.name && inv.name.trim()) {
+          var priority = investMap[inv.name] || 'medium';
+          if (inv.status === 'Requested' || inv.status === 'Sample Sent' || inv.status === 'Result Awaited') {
+            tasksToCreate.push({ 
+              task: inv.name + ' Sample', 
+              priority: priority, 
+              type: 'Investigation',
+              key: inv.name
+            });
+          }
+        }
+      });
+    }
+    
+    // 2. Referrals
+    if (round.referrals && round.referrals.department && round.referrals.department !== '' && round.referrals.status === 'Pending') {
+      tasksToCreate.push({ 
+        task: round.referrals.department + ' Referral', 
+        priority: 'high', 
+        type: 'Referral',
+        key: 'referral_' + round.referrals.department
+      });
+    }
+    
+    // 3. Medication
+    if (round.medication && round.medication.changes && round.medication.changes.trim() !== '' && !round.medication.noChange) {
+      var med = round.medication.changes.length > 40 ? round.medication.changes.substring(0,40) + '…' : round.medication.changes;
+      tasksToCreate.push({ 
+        task: 'Medication: ' + med, 
+        priority: 'high', 
+        type: 'Medication',
+        key: 'medication_' + med.substring(0,20)
+      });
+    }
+    
+    // 4. Wound / Dressing
+    var woundMap = {
+      'Normal Saline Dressing':'medium','Betadine Dressing':'medium','VAC Dressing':'high',
+      'Secondary Suturing':'medium','Soakage':'high','Infected':'high','Opened':'medium'
+    };
+    if (round.wound && round.wound.status && round.wound.status !== 'Healthy' && round.wound.status !== 'N/A' && round.wound.status !== 'None' && round.wound.status !== '') {
+      var wPriority = woundMap[round.wound.status] || 'medium';
+      tasksToCreate.push({ 
+        task: 'Dressing: ' + round.wound.status, 
+        priority: wPriority, 
+        type: 'Wound',
+        key: 'dressing_' + round.wound.status
+      });
+    }
+    
+    // 5. Drains
+    if (round.drains && round.drains.length > 0) {
+      round.drains.forEach(function(d) {
+        if (d.type && d.type !== '' && d.status) {
+          if (d.status === 'Remove Today' || d.status === 'Remove Tomorrow') {
+            tasksToCreate.push({ 
+              task: 'Remove ' + d.type, 
+              priority: 'high', 
+              type: 'Drain',
+              key: 'drain_remove_' + d.type
+            });
+          } else if (d.status === 'Keep') {
+            tasksToCreate.push({ 
+              task: 'Monitor ' + d.type, 
+              priority: 'low', 
+              type: 'Drain',
+              key: 'drain_monitor_' + d.type
+            });
+          }
+        }
+      });
+    }
+    
+    // 6. Mobilization
+    if (round.mobilization && round.mobilization !== 'N/A' && round.mobilization !== 'Bed Rest' && round.mobilization !== '') {
+      tasksToCreate.push({ 
+        task: 'Mobilization: ' + round.mobilization, 
+        priority: 'low', 
+        type: 'Mobilization',
+        key: 'mobilization_' + round.mobilization
+      });
+    }
+    
+    // 7. Procedure
+    var procMap = {
+      'Dressing':'medium','Minor OT':'high','Major OT':'critical',
+      'Discharge Today':'high','Shift ICU':'critical','Shift Ward':'medium',
+      'Procedure Tomorrow':'high'
+    };
+    if (round.procedure && round.procedure !== 'None' && round.procedure !== '' && procMap[round.procedure]) {
+      var taskName = round.procedure;
+      if (round.procedure === 'Discharge Today') taskName = 'Prepare Discharge';
+      else if (round.procedure === 'Minor OT') taskName = 'Prepare Minor OT';
+      else if (round.procedure === 'Major OT') taskName = 'Prepare Major OT';
+      else if (round.procedure === 'Procedure Tomorrow') taskName = 'Prepare Procedure';
+      
+      tasksToCreate.push({ 
+        task: taskName, 
+        priority: procMap[round.procedure], 
+        type: 'Procedure',
+        key: 'procedure_' + round.procedure
+      });
+    }
+    
+    // 8. Diet
+    if (round.diet && round.diet.type && round.diet.type !== 'Normal' && round.diet.type !== '' && !round.diet.na) {
+      tasksToCreate.push({ 
+        task: 'Diet: ' + round.diet.type, 
+        priority: 'low', 
+        type: 'Diet',
+        key: 'diet_' + round.diet.type
+      });
+    }
+    
+    // 9. IV Fluids
+    if (round.ivFluids && round.ivFluids.type && round.ivFluids.type !== 'No IV Fluids' && round.ivFluids.type !== '' && !round.ivFluids.na) {
+      var detail = (round.ivFluids.type + ' ' + (round.ivFluids.volume || '') + ' ' + (round.ivFluids.rate || '')).trim();
+      tasksToCreate.push({ 
+        task: 'IV: ' + detail, 
+        priority: 'medium', 
+        type: 'IV',
+        key: 'iv_' + round.ivFluids.type
+      });
+    }
+    if (round.ivFluids && round.ivFluids.type === 'No IV Fluids' && !round.ivFluids.na) {
+      tasksToCreate.push({ 
+        task: 'IV Stop', 
+        priority: 'medium', 
+        type: 'IV',
+        key: 'iv_stop'
+      });
+    }
+    
+    // 10. Review Plan
+    if (round.reviewPlan && round.reviewPlan.length > 20) {
+      var review = round.reviewPlan.length > 40 ? round.reviewPlan.substring(0,40) + '…' : round.reviewPlan;
+      tasksToCreate.push({ 
+        task: 'Review: ' + review, 
+        priority: 'medium', 
+        type: 'Review',
+        key: 'review_' + review.substring(0,20)
+      });
+    }
+    
+    console.log('Tasks to create:', tasksToCreate);
+    
+    if (tasksToCreate.length === 0) {
+      console.log('No tasks to create');
+      resolve();
+      return;
+    }
+    
+    // Unique key per task = patientId + type/content key (tasksToCreate[].key already encodes
+    // the clinical content, e.g. investigation name, drain type, procedure). Combined with
+    // patientId this is our patientId+taskType uniqueness guarantee, and prevents the same
+    // ongoing issue (e.g. "Keep Foley") from re-spawning a duplicate task on every round.
+    // Delete obsolete pending auto tasks for this patient (excluding completed/cancelled)
+    var obsoleteTasks = autoTasks.filter(function(at) {
+      return at.patientId === patient.id && 
+             at.status !== 'complete' && 
+             at.status !== 'cancelled' &&
+             !tasksToCreate.some(function(t) { return t.key === at.key; });
+    });
+    
+    var batchOp = db.batch();
+    var opCount = 0;
+    
+    obsoleteTasks.forEach(function(t) {
+      console.log('Deleting obsolete task:', t.task);
+      batchOp.delete(autoTasksCol.doc(t.id));
+      opCount++;
+    });
+    
+    // Create/update tasks
+    tasksToCreate.forEach(function(t) {
+      var existing = autoTasks.find(function(at) {
+        return at.patientId === patient.id && at.key === t.key && at.status !== 'complete' && at.status !== 'cancelled';
+      });
+      if (existing) {
+        if (existing.priority !== t.priority || existing.task !== t.task) {
+          console.log('Updating existing task:', t.task);
+          batchOp.update(autoTasksCol.doc(existing.id), {
+            task: t.task,
+            priority: t.priority,
+            roundDate: today,
+            lastUpdated: fsTimestamp()
+          });
+          opCount++;
+        }
+      } else {
+        console.log('Creating new task:', t.task);
+        batchOp.set(autoTasksCol.doc(), {
+          patientId: patient.id,
+          patient: patient.name,
+          ward: patient.ward,
+          bed: patient.bed,
+          diagnosis: patient.diagnosis || '',
+          consultant: patient.consultant || '',
+          task: t.task,
+          type: t.type,
+          key: t.key,
+          priority: t.priority,
+          status: 'pending',
+          assignedTo: '',
+          comments: '',
+          createdAt: fsTimestamp(),
+          roundDate: today,
+          dueTime: null,
+          completedTime: null,
+          history: [{ action: 'Created from round', time: new Date().toISOString() }],
+          lastUpdated: fsTimestamp()
+        });
+        opCount++;
+      }
+    });
+    
+    if (opCount === 0) {
+      console.log('No auto task changes needed');
+      resolve();
+      return;
+    }
+    
+    batchOp.commit()
+      .then(function() {
+        showToast('Auto tasks updated (' + tasksToCreate.length + ' active)', 'success');
+        resolve();
+      })
+      .catch(function(err) {
+        console.error('Batch commit error (auto tasks):', err);
+        showToast('Round saved, but auto tasks failed to update: ' + err.message, 'error');
+        resolve(); // don't block the round-save workflow on a task-sync failure
+      });
+  } catch(err) {
+    console.error('Generate auto tasks error:', err);
+    showToast('Error generating tasks: ' + err.message, 'error');
+    resolve(); // don't block the round-save workflow
+  }
+  });
+}
+
+// ============ RENDER TASKS ============
+function renderAllTasks(viewDate) {
+  try {
+    var filterPerson = document.getElementById('taskFilterPerson').value;
+    var filterPriority = document.getElementById('taskFilterPriority').value;
+    var filterStatus = document.getElementById('taskFilterStatus').value;
+    var filterWard = document.getElementById('taskFilterWard').value;
+    
+    var allTasks = manualTasks.concat(autoTasks);
+    var filtered = allTasks.filter(function(t) {
+      if (filterPerson && t.assignedTo !== filterPerson) return false;
+      if (filterPriority && t.priority !== filterPriority) return false;
+      if (filterStatus && t.status !== filterStatus) return false;
+      if (filterWard && t.ward !== filterWard) return false;
+      return true;
+    });
+    
+    var assignedSel = document.getElementById('taskFilterPerson');
+    var allNames = [];
+    allTasks.forEach(function(t) {
+      if (t.assignedTo && allNames.indexOf(t.assignedTo) === -1) allNames.push(t.assignedTo);
+    });
+    var cur = assignedSel.value;
+    assignedSel.innerHTML = '<option value="">All assigned</option>' + allNames.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
+    if (allNames.indexOf(cur) !== -1) assignedSel.value = cur;
+
+    var board = document.getElementById('taskBoard');
+    var statuses = ['pending','accepted','inprogress','complete','incomplete','cancelled'];
+    var labels = {pending:'⏳ Pending', accepted:'✅ Accepted', inprogress:'🔄 In Progress', complete:'✔ Complete', incomplete:'❌ Incomplete', cancelled:'🚫 Cancelled'};
+    board.innerHTML = '';
+    statuses.forEach(function(st) {
+      var col = document.createElement('div');
+      col.className = 'task-column';
+      var items = filtered.filter(function(t) { return t.status === st; });
+      col.innerHTML = '<h4>' + labels[st] + ' (' + items.length + ')</h4>';
+      items.forEach(function(t) {
+        col.appendChild(buildTaskTile(t));
+      });
+      board.appendChild(col);
+    });
+    updateTaskCounters(viewDate);
+  } catch(err) {
+    console.error('Render tasks error:', err);
+  }
+}
+
+function buildTaskTile(t) {
+  try {
+    var tile = document.createElement('div');
+    var isAuto = !!t.patientId;
+    tile.className = 'task-tile priority-' + (t.priority || 'medium');
+    var due = t.dueTime ? new Date(t.dueTime).toLocaleString() : '';
+    var updated = t.lastUpdated ? formatTime(toDate(t.lastUpdated)) : '';
+    tile.innerHTML = 
+      '<div class="task-title">' + (t.patient || 'Unknown') + ' · Bed ' + (t.bed || '—') + (isAuto ? ' ⚡' : '') + '</div>' +
+      '<div class="task-meta">' + (t.task || '') + ' · ' + (t.assignedTo || 'unassigned') + (due ? ' · Due ' + due : '') + '</div>' +
+      '<div class="task-meta" style="font-weight:600; color:var(--accent);">' + (t.ward || '') + ' · ' + (t.type || 'Manual') + (updated ? ' · Updated ' + updated : '') + '</div>' +
+      '<div class="task-actions">' +
+      '<button data-id="' + t.id + '" data-status="accepted" data-isauto="' + isAuto + '">✅</button>' +
+      '<button data-id="' + t.id + '" data-status="inprogress" data-isauto="' + isAuto + '">🔄</button>' +
+      '<button data-id="' + t.id + '" data-status="complete" data-isauto="' + isAuto + '">✔</button>' +
+      '<button data-id="' + t.id + '" data-status="incomplete" data-isauto="' + isAuto + '">❌</button>' +
+      '<button data-id="' + t.id + '" data-status="cancelled" data-isauto="' + isAuto + '">🚫</button>' +
+      (!isAuto ? '<button class="del" data-id="' + t.id + '" data-isauto="' + isAuto + '">✕</button>' : '') +
+      '</div>';
+    
+    tile.addEventListener('click', function(e) {
+      if (e.target.closest('.task-actions')) return;
+      if (isAuto) {
+        openTaskDetail(t, true);
+      } else {
+        alert('Manual Task: ' + t.task + '\nPatient: ' + t.patient + '\nStatus: ' + t.status + '\nAssigned: ' + (t.assignedTo || 'unassigned'));
+      }
+    });
+    
+    tile.querySelectorAll('.task-actions button').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var id = this.dataset.id;
+        var status = this.dataset.status;
+        var isAuto = this.dataset.isauto === 'true';
+        if (status) {
+          if (status === 'incomplete') {
+            var reason = prompt('Reason for incomplete:', 'Patient not available');
+            if (reason !== null) {
+              var col = isAuto ? autoTasksCol : tasksCol;
+              var updatePayload = { 
+                status: status, 
+                comments: reason, 
+                lastUpdated: fsTimestamp(),
+                history: fsArrayUnion({ action: 'Marked ' + status, time: new Date().toISOString(), comment: reason })
+              };
+              col.doc(id).set(updatePayload, { merge: true })
+              .then(function() {
+                auditCol.add({ action: 'Task ' + status + ': ' + t.task, user: currentUserEmail(), time: new Date().toISOString() });
+                showToast('Task updated', 'success');
+              })
+              .catch(function(err) {
+                console.error('Update error:', err);
+                showToast('Error: ' + err.message, 'error');
+              });
+            }
+          } else {
+            var col = isAuto ? autoTasksCol : tasksCol;
+            var updatePayload = { 
+              status: status, 
+              lastUpdated: fsTimestamp(),
+              history: fsArrayUnion({ action: 'Marked ' + status, time: new Date().toISOString() })
+            };
+            if (status === 'complete') updatePayload.completedBy = currentUserEmail();
+            col.doc(id).set(updatePayload, { merge: true })
+            .then(function() {
+              auditCol.add({ action: 'Task ' + status + ': ' + t.task, user: currentUserEmail(), time: new Date().toISOString() });
+              showToast('Task updated', 'success');
+            })
+            .catch(function(err) {
+              console.error('Update error:', err);
+              showToast('Error: ' + err.message, 'error');
+            });
+          }
+        } else if (this.classList.contains('del')) {
+          if (confirm('Delete manual task?')) {
+            tasksCol.doc(id).delete()
+              .then(function() {
+                showToast('Task deleted', 'success');
+              })
+              .catch(function(err) {
+                console.error('Delete error:', err);
+                showToast('Error: ' + err.message, 'error');
+              });
+          }
+        }
+      });
+    });
+    return tile;
+  } catch(err) {
+    console.error('Build task tile error:', err);
+    var fallback = document.createElement('div');
+    fallback.textContent = 'Error loading task';
+    return fallback;
+  }
+}
+
+function updateTaskCounters(viewDate) {
+  try {
+    var allTasks = manualTasks.concat(autoTasks);
+    var total = allTasks.length;
+    var pending = allTasks.filter(function(t) { return t.status === 'pending' || t.status === 'accepted'; }).length;
+    var inprog = allTasks.filter(function(t) { return t.status === 'inprogress'; }).length;
+    var complete = allTasks.filter(function(t) { return t.status === 'complete'; }).length;
+    var overdue = allTasks.filter(function(t) {
+      return t.status !== 'complete' && t.status !== 'cancelled' && t.dueTime && new Date(t.dueTime) < new Date();
+    }).length;
+    document.getElementById('taskCounters').innerHTML = 
+      '<span>📌 Total ' + total + '</span>' +
+      '<span>⏳ Pending ' + pending + '</span>' +
+      '<span>🔄 In Prog ' + inprog + '</span>' +
+      '<span>✅ Complete ' + complete + '</span>' +
+      '<span style="color:var(--danger)">⚠ Overdue ' + overdue + '</span>';
+  } catch(err) {
+    console.error('Update task counters error:', err);
+  }
+}
+
+// ============ RENDER AUTO TASKS ============
+function renderAutoTasks(viewDate) {
+  try {
+    var filterWard = document.getElementById('autoFilterWard').value;
+    var filterPriority = document.getElementById('autoFilterPriority').value;
+    var filterStatus = document.getElementById('autoFilterStatus').value;
+    var filtered = autoTasks.filter(function(t) {
+      if (filterWard && t.ward !== filterWard) return false;
+      if (filterPriority && t.priority !== filterPriority) return false;
+      if (filterStatus && t.status !== filterStatus) return false;
+      return true;
+    });
+    var board = document.getElementById('autoTaskBoard');
+    var statuses = ['pending','accepted','inprogress','complete','incomplete','cancelled'];
+    var labels = {pending:'⏳ Pending', accepted:'✅ Accepted', inprogress:'🔄 In Progress', complete:'✔ Complete', incomplete:'❌ Incomplete', cancelled:'🚫 Cancelled'};
+    board.innerHTML = '';
+    statuses.forEach(function(st) {
+      var col = document.createElement('div');
+      col.className = 'task-column';
+      var items = filtered.filter(function(t) { return t.status === st; });
+      col.innerHTML = '<h4>' + labels[st] + ' (' + items.length + ')</h4>';
+      items.forEach(function(t) {
+        col.appendChild(buildTaskTile(t));
+      });
+      board.appendChild(col);
+    });
+    updateAutoTaskCounters(viewDate);
+  } catch(err) {
+    console.error('Render auto tasks error:', err);
+  }
+}
+
+function updateAutoTaskCounters(viewDate) {
+  try {
+    var total = autoTasks.length;
+    var pending = autoTasks.filter(function(t) { return t.status === 'pending' || t.status === 'accepted'; }).length;
+    var inprog = autoTasks.filter(function(t) { return t.status === 'inprogress'; }).length;
+    var complete = autoTasks.filter(function(t) { return t.status === 'complete'; }).length;
+    var overdue = autoTasks.filter(function(t) {
+      return t.status !== 'complete' && t.status !== 'cancelled' && t.dueTime && new Date(t.dueTime) < new Date();
+    }).length;
+    document.getElementById('autoTaskCounters').innerHTML = 
+      '<span>📌 Total ' + total + '</span>' +
+      '<span>⏳ Pending ' + pending + '</span>' +
+      '<span>🔄 In Prog ' + inprog + '</span>' +
+      '<span>✅ Complete ' + complete + '</span>' +
+      '<span style="color:var(--danger)">⚠ Overdue ' + overdue + '</span>';
+  } catch(err) {
+    console.error('Update auto task counters error:', err);
+  }
+}
+
+// ============ TASK DETAIL MODAL ============
+var currentTaskDetail = null;
+
+function openTaskDetail(task, isAuto) {
+  try {
+    currentTaskDetail = { task: task, isAuto: isAuto };
+    document.getElementById('taskDetailTitle').textContent = '📋 ' + (task.task || '');
+    var patient = patients.find(function(p) { return p.id === task.patientId; });
+    var html = '<div class="task-detail-grid">' +
+      '<span class="label">Patient</span><span class="value">' + (task.patient || '') + ' (' + (task.bed || '—') + ')</span>' +
+      '<span class="label">Ward</span><span class="value">' + (task.ward || '') + '</span>' +
+      '<span class="label">Diagnosis</span><span class="value">' + (patient ? patient.diagnosis : task.diagnosis || '') + '</span>' +
+      '<span class="label">Consultant</span><span class="value">' + (patient ? patient.consultant : task.consultant || '') + '</span>' +
+      '<span class="label">Task</span><span class="value">' + (task.task || '') + '</span>' +
+      '<span class="label">Priority</span><span class="value" style="font-weight:700;">' + (task.priority || 'medium') + '</span>' +
+      '<span class="label">Status</span><span class="value">' + (task.status || 'pending') + '</span>' +
+      '<span class="label">Assigned To</span><span class="value">' + (task.assignedTo || 'unassigned') + '</span>' +
+      '<span class="label">Due Time</span><span class="value">' + (task.dueTime ? new Date(task.dueTime).toLocaleString() : '—') + '</span>' +
+      '<span class="label">Comments</span><span class="value">' + (task.comments || '—') + '</span>' +
+      '<span class="label">Last Updated</span><span class="value">' + (task.lastUpdated ? formatTime(toDate(task.lastUpdated)) : '—') + '</span>' +
+      '</div>';
+    if (task.history && task.history.length) {
+      html += '<div style="margin-top:8px;"><strong>Timeline</strong><div style="font-size:0.7rem; color:#666;">' + 
+        task.history.map(function(h) { return h.action + ' ' + (h.time ? new Date(h.time).toLocaleString() : '') + (h.comment ? ' (' + h.comment + ')' : ''); }).join(' → ') + 
+        '</div></div>';
+    }
+    if (patient && patient.round) {
+      html += '<div style="margin-top:8px; border-top:1px solid var(--line); padding-top:8px;"><strong>Today\'s Round Orders</strong><div style="font-size:0.75rem; color:#444;">';
+      if (patient.round.clinicalProgress) html += '<div>Progress: ' + patient.round.clinicalProgress + '</div>';
+      if (patient.round.reviewPlan) html += '<div>Plan: ' + patient.round.reviewPlan + '</div>';
+      html += '</div></div>';
+    }
+    document.getElementById('taskDetailContent').innerHTML = html;
+    document.getElementById('taskDetailStatus').value = task.status || 'pending';
+    document.getElementById('taskDetailAssign').value = task.assignedTo || '';
+    document.getElementById('taskDetailComment').value = task.comments || '';
+    document.getElementById('taskDetailModal').classList.add('open');
+  } catch(err) {
+    console.error('Open task detail error:', err);
+    showToast('Error opening task: ' + err.message, 'error');
+  }
+}
+
+document.getElementById('taskDetailCancel').addEventListener('click', function() {
+  document.getElementById('taskDetailModal').classList.remove('open');
+});
+
+document.getElementById('taskDetailSave').addEventListener('click', function() {
+  try {
+    if (!currentTaskDetail) return;
+    var task = currentTaskDetail.task;
+    var isAuto = currentTaskDetail.isAuto;
+    var status = document.getElementById('taskDetailStatus').value;
+    var assignedTo = document.getElementById('taskDetailAssign').value.trim();
+    var comments = document.getElementById('taskDetailComment').value.trim();
+    var col = isAuto ? autoTasksCol : tasksCol;
+    var update = { status: status, assignedTo: assignedTo, comments: comments, lastUpdated: fsTimestamp() };
+    if (status === 'incomplete' && !comments) {
+      showToast('Comment required for Incomplete status', 'error');
+      return;
+    }
+    if (status === 'complete') { update.completedTime = fsTimestamp(); update.completedBy = currentUserEmail(); }
+    col.doc(task.id).set(update, { merge: true })
+      .then(function() {
+        auditCol.add({ action: 'Updated task ' + task.task + ' → ' + status, user: currentUserEmail(), time: new Date().toISOString() });
+        showToast('Task updated successfully', 'success');
+        document.getElementById('taskDetailModal').classList.remove('open');
+      })
+      .catch(function(err) {
+        console.error('Update task error:', err);
+        showToast('Error: ' + err.message, 'error');
+      });
+  } catch(err) {
+    console.error('Save task detail error:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+});
+
+// ============ REPORTS ============
+function renderReports(viewDate) {
+  try {
+    var log = document.getElementById('reportLog');
+    var now = viewDate || new Date();
+    var txt = '--- GENERAL SURGERY ---\n' + formatDateLong(now) + '\n\n';
+    txt += 'Total Patients: ' + patients.length + '\n';
+    txt += 'Admissions: ' + events.filter(function(e) { return e.type === 'admission' && isSameDay(toDate(e.at) || new Date(e.at), now); }).length + '\n';
+    txt += 'Discharges: ' + events.filter(function(e) { return e.type === 'discharge' && isSameDay(toDate(e.at) || new Date(e.at), now); }).length + '\n';
+    txt += 'Deaths: ' + events.filter(function(e) { return e.type === 'death' && isSameDay(toDate(e.at) || new Date(e.at), now); }).length + '\n';
+    txt += 'Rounds Completed: ' + patients.filter(function(p) { return isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), now); }).length + '\n';
+    txt += 'Rounds Pending: ' + patients.filter(function(p) { return !isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), now); }).length + '\n\n';
+    ['FSW','MSW','SPECIAL'].forEach(function(w) {
+      var list = patients.filter(function(p) { return p.ward === w; });
+      txt += wardMeta(w).label + ': ' + list.length + '\n';
+      list.forEach(function(p) {
+        txt += '  ' + p.name + ' | Bed ' + (p.bed || '—') + ' | ' + (p.status || '') + '\n';
+      });
+    });
+    txt += '\n--- Tasks ---\n';
+    var allTasks = manualTasks.concat(autoTasks);
+    txt += 'Completed: ' + allTasks.filter(function(t) { return t.status === 'complete'; }).length + '\n';
+    txt += 'Pending: ' + allTasks.filter(function(t) { return t.status === 'pending' || t.status === 'accepted'; }).length + '\n';
+    txt += 'Incomplete: ' + allTasks.filter(function(t) { return t.status === 'incomplete'; }).length + '\n';
+    txt += 'Overdue: ' + allTasks.filter(function(t) { return t.status !== 'complete' && t.status !== 'cancelled' && t.dueTime && new Date(t.dueTime) < new Date(); }).length + '\n';
+    txt += '\n--- Consultant Review Plan ---\n';
+    patients.forEach(function(p) {
+      if (p.round && p.round.reviewPlan) {
+        txt += p.name + ': ' + p.round.reviewPlan + '\n';
+      }
+    });
+    log.textContent = txt;
+  } catch(err) {
+    console.error('Render reports error:', err);
+  }
+}
+
+// ============ AUDIT ============
+function renderAudit() {
+  try {
+    var log = document.getElementById('auditLog');
+    if (!audit.length) { log.textContent = 'No audit entries yet.'; return; }
+    log.innerHTML = audit.map(function(a) {
+      var time = a.time ? new Date(a.time).toLocaleString() : '';
+      return time + ' | ' + a.action + ' | ' + (a.user || 'System');
+    }).join('\n');
+  } catch(err) {
+    console.error('Render audit error:', err);
+  }
+}
+
+// ============ SHARE FUNCTIONS ============
+function shareText(msg) {
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+document.getElementById('shareDashboardBtn').addEventListener('click', function() {
+  var now = getViewDate();
+  var msg = 'WARD DASHBOARD\n' + formatDateLong(now) + '\n\n';
+  msg += 'FSW: ' + patients.filter(function(p) { return p.ward === 'FSW'; }).length + '\n';
+  msg += 'MSW: ' + patients.filter(function(p) { return p.ward === 'MSW'; }).length + '\n';
+  msg += 'Special: ' + patients.filter(function(p) { return p.ward === 'SPECIAL'; }).length + '\n';
+  msg += 'Admissions: ' + events.filter(function(e) { return e.type === 'admission' && isSameDay(toDate(e.at) || new Date(e.at), now); }).length + '\n';
+  msg += 'Discharges: ' + events.filter(function(e) { return e.type === 'discharge' && isSameDay(toDate(e.at) || new Date(e.at), now); }).length + '\n';
+  msg += 'Rounds Pending: ' + patients.filter(function(p) { return !isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), now); }).length + '\n';
+  msg += 'Rounds Completed: ' + patients.filter(function(p) { return isSameDay(toDate(p.lastRoundAt) || new Date(p.lastRoundAt), now); }).length;
+  shareText(msg);
+});
+
+document.getElementById('shareTasksBtn').addEventListener('click', function() {
+  var msg = 'TASK SUMMARY\n' + formatDateLong(getViewDate()) + '\n\n';
+  var allTasks = manualTasks.concat(autoTasks);
+  var pending = allTasks.filter(function(t) { return t.status === 'pending' || t.status === 'accepted'; });
+  msg += 'Pending: ' + pending.length + '\n';
+  pending.forEach(function(t) {
+    msg += '  ' + t.patient + ' | ' + t.task + ' | ' + (t.priority || 'MEDIUM') + ' | ' + (t.assignedTo || 'unassigned') + '\n';
+  });
+  msg += '\nCompleted: ' + allTasks.filter(function(t) { return t.status === 'complete'; }).length;
+  shareText(msg);
+});
+
+document.getElementById('shareAutoTasksBtn').addEventListener('click', function() {
+  var msg = 'AUTO-GENERATED TASKS\n' + formatDateLong(getViewDate()) + '\n\n';
+  var pending = autoTasks.filter(function(t) { return t.status === 'pending' || t.status === 'accepted'; });
+  pending.forEach(function(t) {
+    msg += t.patient + ' (' + (t.bed || '—') + ') | ' + t.task + ' | ' + (t.priority || 'MEDIUM') + ' | ' + (t.assignedTo || 'unassigned') + '\n';
+  });
+  shareText(msg);
+});
+
+document.getElementById('shareReportBtn').addEventListener('click', function() {
+  var log = document.getElementById('reportLog').textContent;
+  shareText(log);
+});
+
+document.getElementById('handoverBtn').addEventListener('click', function() {
+  var now = getViewDate();
+  var msg = '🌙 NIGHT HANDOVER\n' + formatDateLong(now) + ' ' + new Date().toLocaleTimeString() + '\n\n';
+  msg += '👥 Total: ' + patients.length + '\n';
+  var critical = patients.filter(function(p) { return p.status === 'critical'; });
+  msg += '⚠ Critical: ' + critical.length + ' - ' + critical.map(function(p) { return p.name; }).join(', ') + '\n';
+  var drains = patients.filter(function(p) { return p.round && p.round.drains && p.round.drains.some(function(d) { return d.status === 'Keep' || d.status === 'Remove Today'; }); });
+  msg += '🩸 Drains: ' + drains.map(function(p) { return p.name; }).join(', ') + '\n';
+  var pendingInv = autoTasks.filter(function(t) { return t.type === 'Investigation' && t.status !== 'complete'; });
+  msg += '🔬 Pending Investigations: ' + pendingInv.length + '\n';
+  var pendingRef = autoTasks.filter(function(t) { return t.type === 'Referral' && t.status !== 'complete'; });
+  msg += '📞 Pending Referrals: ' + pendingRef.length + '\n';
+  var pendingProc = autoTasks.filter(function(t) { return t.type === 'Procedure' && t.status !== 'complete'; });
+  msg += '🩹 Procedures: ' + pendingProc.map(function(t) { return t.task; }).join(', ') + '\n';
+  var discharge = patients.filter(function(p) { return p.round && p.round.procedure && p.round.procedure.includes('Discharge Today'); });
+  msg += '🏠 Planned Discharge: ' + discharge.map(function(p) { return p.name; }).join(', ') + '\n';
+  var highPrio = autoTasks.filter(function(t) { return t.priority === 'high' && t.status !== 'complete'; });
+  msg += '⏳ High priority tasks: ' + highPrio.length;
+  shareText(msg);
+});
+
+document.getElementById('dailyReportBtn').addEventListener('click', function() {
+  var log = document.getElementById('reportLog').textContent;
+  alert('📋 Daily Report\n\n' + log);
+});
+
+document.getElementById('shareBtn').addEventListener('click', function() {
+  var msg = 'WARD CENSUS\n';
+  ['FSW','MSW','SPECIAL'].forEach(function(w) {
+    var list = patients.filter(function(p) { return p.ward === w; });
+    msg += w + ': ' + list.length + ' - ' + list.map(function(p) { return p.name; }).join(', ') + '\n';
+  });
+  msg += '\nTotal: ' + patients.length;
+  shareText(msg);
+});
+
+document.getElementById('resetBtn').addEventListener('click', function() {
+  if (!confirm('Reset ALL data (patients, tasks, events, audit log)? This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure? This will permanently delete everything.')) return;
+  try {
+    var batchOp = db.batch();
+    var count = 0;
+    patients.forEach(function(p) { batchOp.delete(patientsCol.doc(p.id)); count++; });
+    manualTasks.forEach(function(t) { batchOp.delete(tasksCol.doc(t.id)); count++; });
+    autoTasks.forEach(function(t) { batchOp.delete(autoTasksCol.doc(t.id)); count++; });
+    events.forEach(function(e) { batchOp.delete(eventsCol.doc(e.id)); count++; });
+    audit.forEach(function(a) { batchOp.delete(auditCol.doc(a.id)); count++; });
+    if (count === 0) { showToast('Nothing to reset', 'success'); return; }
+    batchOp.commit()
+      .then(function() {
+        renderAll();
+        showToast('All data reset', 'success');
+      })
+      .catch(function(err) {
+        console.error('Reset error:', err);
+        showToast('Error resetting data: ' + err.message, 'error');
+      });
+  } catch(err) {
+    console.error('Reset error:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+});
+
+document.getElementById('addPatientBtn').addEventListener('click', function() {
+  openPatientModal(null);
+});
+
+// ============ FILTERS ============
+document.getElementById('searchInput').addEventListener('input', function() { renderWards(getViewDate()); });
+document.getElementById('fWard').addEventListener('change', function() { renderWards(getViewDate()); });
+document.getElementById('fConsultant').addEventListener('change', function() { renderWards(getViewDate()); });
+document.getElementById('fDiagnosis').addEventListener('input', function() { renderWards(getViewDate()); });
+document.getElementById('fPod').addEventListener('input', function() { renderWards(getViewDate()); });
+document.getElementById('fPendingRound').addEventListener('click', function() { this.classList.toggle('active'); renderWards(getViewDate()); });
+document.getElementById('fDischargeToday').addEventListener('click', function() { this.classList.toggle('active'); renderWards(getViewDate()); });
+document.getElementById('fClearBtn').addEventListener('click', function() {
+  document.getElementById('fWard').value = '';
+  document.getElementById('fConsultant').value = '';
+  document.getElementById('fDiagnosis').value = '';
+  document.getElementById('fPod').value = '';
+  document.getElementById('fPendingRound').classList.remove('active');
+  document.getElementById('fDischargeToday').classList.remove('active');
+  renderWards(getViewDate());
+});
+document.getElementById('filterToggleBtn').addEventListener('click', function() {
+  document.getElementById('filterPanel').classList.toggle('open');
+});
+
+document.getElementById('taskFilterPerson').addEventListener('change', function() { renderAllTasks(getViewDate()); });
+document.getElementById('taskFilterPriority').addEventListener('change', function() { renderAllTasks(getViewDate()); });
+document.getElementById('taskFilterStatus').addEventListener('change', function() { renderAllTasks(getViewDate()); });
+document.getElementById('taskFilterWard').addEventListener('change', function() { renderAllTasks(getViewDate()); });
+
+document.getElementById('autoFilterWard').addEventListener('change', function() { renderAutoTasks(getViewDate()); });
+document.getElementById('autoFilterPriority').addEventListener('change', function() { renderAutoTasks(getViewDate()); });
+document.getElementById('autoFilterStatus').addEventListener('change', function() { renderAutoTasks(getViewDate()); });
+
+// ============ TABS ============
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    this.classList.add('active');
+    document.getElementById(this.dataset.tab).classList.add('active');
+    renderAll();
+  });
+});
+
+// ============ START (called once, after login) ============
+function startApp() {
+  console.log('Ward Management System starting...');
+  listen();
+  updateDateDisplay();
+  showToast('System ready', 'success');
+}
+</script>
+</body>
+</html>
